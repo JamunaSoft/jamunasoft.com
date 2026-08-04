@@ -1,0 +1,161 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Deep navy brand scale */
+    --color-navy-50: #f1f5fb;
+    --color-navy-100: #dfe8f6;
+    --color-navy-200: #c3d4ee;
+    --color-navy-300: #94b3e0;
+    --color-navy-400: #5f8bcd;
+    --color-navy-500: #3b6bb8;
+    --color-navy-600: #2b529b;
+    --color-navy-700: #24427d;
+    --color-navy-800: #172c56;
+    --color-navy-900: #0b1b3a;
+    --color-navy-950: #060f24;
+
+    /* Blue → cyan accent */
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #1e3a8a;
+
+    --color-accent-400: #22d3ee;
+    --color-accent-500: #06b6d4;
+    --color-accent-600: #0891b2;
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        html {
+            scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+
+    body {
+        @apply bg-white text-slate-700 antialiased;
+    }
+
+    ::selection {
+        background-color: var(--color-brand-600);
+        color: #fff;
+    }
+}
+
+@layer components {
+    /* Admin-authored rich text (services, blog posts, pages) */
+    .rich-text {
+        @apply text-slate-700 leading-relaxed;
+    }
+
+    .rich-text > * + * {
+        margin-top: 1em;
+    }
+
+    .rich-text h2 {
+        @apply text-2xl font-bold text-navy-900 mt-10 mb-4;
+    }
+
+    .rich-text h3 {
+        @apply text-xl font-bold text-navy-900 mt-8 mb-3;
+    }
+
+    .rich-text h4 {
+        @apply text-lg font-semibold text-navy-900 mt-6 mb-2;
+    }
+
+    .rich-text p {
+        @apply leading-relaxed;
+    }
+
+    .rich-text a {
+        @apply text-brand-600 underline underline-offset-2 hover:text-brand-700;
+    }
+
+    .rich-text ul {
+        @apply list-disc pl-6 space-y-2;
+    }
+
+    .rich-text ol {
+        @apply list-decimal pl-6 space-y-2;
+    }
+
+    .rich-text blockquote {
+        @apply border-l-4 border-brand-500 pl-4 italic text-slate-600;
+    }
+
+    .rich-text img {
+        @apply rounded-2xl max-w-full h-auto;
+    }
+
+    .rich-text pre {
+        @apply bg-navy-950 text-slate-100 rounded-2xl p-4 overflow-x-auto text-sm;
+    }
+
+    .rich-text code {
+        @apply text-sm;
+    }
+
+    .rich-text table {
+        @apply w-full text-left border-collapse text-sm;
+    }
+
+    .rich-text th,
+    .rich-text td {
+        @apply border border-slate-200 px-3 py-2;
+    }
+
+    .rich-text th {
+        @apply bg-slate-50 font-semibold text-navy-900;
+    }
+}
+
+@utility text-gradient {
+    background-image: linear-gradient(to right, var(--color-brand-400), var(--color-accent-400));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Honeypot field — visually removed for humans, present for bots */
+.hp-field {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Accessible focus */
+:focus-visible {
+    outline: 2px solid var(--color-brand-600);
+    outline-offset: 2px;
+}
+
+[x-cloak] {
+    display: none !important;
+}
