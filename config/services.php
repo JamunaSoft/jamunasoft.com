@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'spaceship' => [
+        'key' => env('SPACESHIP_API_KEY'),
+        'secret' => env('SPACESHIP_API_SECRET'),
+        'base_url' => env('SPACESHIP_API_BASE_URL', 'https://spaceship.dev/api/v1'),
+    ],
+
 ];

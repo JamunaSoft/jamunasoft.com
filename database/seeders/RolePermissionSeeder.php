@@ -16,7 +16,8 @@ class RolePermissionSeeder extends Seeder
         'services', 'solutions', 'portfolio', 'packages', 'hosting',
         'testimonials', 'team', 'blog', 'faqs', 'pages', 'menus',
         'redirects', 'social-links', 'leads', 'contact-messages',
-        'newsletter', 'settings', 'users', 'roles',
+        'newsletter', 'settings', 'users', 'roles', 'domains',
+        'clients', 'billing', 'quotations', 'tickets', 'reports',
     ];
 
     public function run(): void
@@ -47,12 +48,16 @@ class RolePermissionSeeder extends Seeder
             'leads.view', 'leads.manage',
             'contact-messages.view', 'contact-messages.manage',
             'newsletter.view', 'newsletter.manage',
+            'quotations.view', 'quotations.manage',
+            'clients.view',
         ]);
 
         $support = Role::findOrCreate('Support Manager');
         $support->syncPermissions([
             'leads.view',
             'contact-messages.view',
+            'tickets.view', 'tickets.manage',
+            'clients.view',
         ]);
     }
 }

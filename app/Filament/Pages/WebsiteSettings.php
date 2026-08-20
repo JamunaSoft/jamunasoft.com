@@ -91,7 +91,32 @@ class WebsiteSettings extends Page
                     Tab::make('Forms & Notifications')->schema([
                         TextInput::make('contact_form_recipients')->helperText('Comma-separated email addresses notified of contact messages.'),
                         TextInput::make('lead_notification_recipients')->helperText('Comma-separated email addresses notified of new leads.'),
+                        TextInput::make('ticket_notification_recipients')->helperText('Comma-separated email addresses notified of support tickets. Falls back to contact form recipients.'),
                         Textarea::make('maintenance_message')->rows(2)->helperText('Shown when the site is in maintenance mode.'),
+                    ]),
+
+                    Tab::make('Domains')->schema([
+                        Textarea::make('domain_payment_instructions')
+                            ->label('Payment instructions')
+                            ->rows(3)
+                            ->helperText('Shown to customers after placing a domain order and in the confirmation email, e.g. bKash number and steps.'),
+                        TextInput::make('domain_order_recipients')
+                            ->label('Order notification recipients')
+                            ->helperText('Comma-separated emails notified of new domain orders. Falls back to lead recipients.'),
+                        TextInput::make('domain_registrant_first_name')
+                            ->label('Registrant first name')
+                            ->helperText('The default WHOIS contact used for all registrations (the white-label proxy contact). All Spaceship/ICANN emails go to this contact, never to customers.'),
+                        TextInput::make('domain_registrant_last_name')->label('Registrant last name'),
+                        TextInput::make('domain_registrant_org')->label('Registrant organization'),
+                        TextInput::make('domain_registrant_email')->email()->label('Registrant email')
+                            ->helperText('Must be an inbox your team monitors — ICANN verification emails arrive here and must be acted on within 15 days.'),
+                        TextInput::make('domain_registrant_phone')->label('Registrant phone')
+                            ->placeholder('+880.1XXXXXXXXX')
+                            ->helperText('EPP format: +<country code>.<number>'),
+                        TextInput::make('domain_registrant_address')->label('Registrant address'),
+                        TextInput::make('domain_registrant_city')->label('Registrant city'),
+                        TextInput::make('domain_registrant_postal')->label('Registrant postal code'),
+                        TextInput::make('domain_registrant_country')->label('Registrant country (ISO code)')->placeholder('BD')->maxLength(2),
                     ]),
                 ])->persistTab(),
             ]);

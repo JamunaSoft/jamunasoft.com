@@ -28,6 +28,7 @@ class GenerateSitemap extends Command
             ['solutions.index', 0.8, Url::CHANGE_FREQUENCY_WEEKLY],
             ['portfolio.index', 0.8, Url::CHANGE_FREQUENCY_WEEKLY],
             ['hosting', 0.8, Url::CHANGE_FREQUENCY_WEEKLY],
+            ['domains.index', 0.8, Url::CHANGE_FREQUENCY_WEEKLY],
             ['packages.index', 0.8, Url::CHANGE_FREQUENCY_WEEKLY],
             ['about', 0.7, Url::CHANGE_FREQUENCY_MONTHLY],
             ['blog.index', 0.7, Url::CHANGE_FREQUENCY_DAILY],
