@@ -65,4 +65,9 @@ class SpaceshipRegistrar implements Registrar
     {
         return $this->sync->syncByName($domain);
     }
+
+    public function syncAll(): array
+    {
+        return $this->sync->sync();
+    }
 }

@@ -37,6 +37,7 @@ class DomainSyncService
         }
 
         $missing = Domain::query()
+            ->where('registrar', 'spaceship')
             ->whereNotIn('name', $syncedNames)
             ->pluck('name')
             ->all();

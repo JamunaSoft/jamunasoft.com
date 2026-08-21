@@ -101,6 +101,31 @@ class ResellCubeRegistrar implements Registrar
         return $local;
     }
 
+    public function syncAll(): array
+    {
+        $names = $this->client->listDomainNames();
+        $created = 0;
+
+        foreach ($names as $name) {
+            $existed = Domain::withTrashed()->where('name', $name)->exists();
+            $created += $existed ? 0 : 1;
+
+            $this->syncDomain($name);
+        }
+
+        $missing = Domain::query()
+            ->where('registrar', $this->key())
+            ->whereNotIn('name', $names)
+            ->pluck('name')
+            ->all();
+
+        return [
+            'synced' => count($names),
+            'created' => $created,
+            'missing' => $missing,
+        ];
+    }
+
     /**
      * The house customer account that owns every registration (white-label:
      * customers never get their own ResellCube account). Cached in settings.

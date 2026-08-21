@@ -79,6 +79,45 @@ class ResellCubeClient
         ]);
     }
 
+    /**
+     * Domain names of all domain orders in the reseller account, paginated
+     * through /domains/search.json.
+     *
+     * @return array<int, string>
+     */
+    public function listDomainNames(): array
+    {
+        $names = [];
+        $page = 1;
+
+        do {
+            $result = $this->call('GET', '/domains/search.json', [
+                'no-of-records' => 100,
+                'page-no' => $page,
+            ]);
+
+            $total = (int) data_get($result, 'recsindb', 0);
+            $pageCount = 0;
+
+            foreach ((array) $result as $key => $record) {
+                if (! is_numeric($key) || ! is_array($record)) {
+                    continue;
+                }
+
+                $pageCount++;
+                $name = strtolower((string) ($record['entity.description'] ?? $record['domainname'] ?? ''));
+
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+
+            $page++;
+        } while ($pageCount > 0 && count($names) < $total && $page < 50);
+
+        return array_values(array_unique($names));
+    }
+
     public function orderIdByDomain(string $domain): int
     {
         return (int) $this->call('GET', '/domains/orderid.json', ['domain-name' => $domain]);

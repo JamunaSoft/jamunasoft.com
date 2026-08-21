@@ -38,4 +38,12 @@ interface Registrar
      * Fetch the domain from the provider and upsert the local Domain row.
      */
     public function syncDomain(string $domain): Domain;
+
+    /**
+     * Pull every domain in the provider account into the local database.
+     * "missing" lists local rows of THIS registrar no longer found remotely.
+     *
+     * @return array{synced: int, created: int, missing: array<int, string>}
+     */
+    public function syncAll(): array;
 }

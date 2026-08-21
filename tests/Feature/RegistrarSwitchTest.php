@@ -152,6 +152,50 @@ class RegistrarSwitchTest extends TestCase
         $this->assertSame('spaceship', $order->registrar);
     }
 
+    public function test_resellcube_sync_pulls_all_account_domains(): void
+    {
+        // A Spaceship domain must never be flagged missing by the RC sync.
+        Domain::create(['name' => 'spaceshipdomain.com', 'registrar' => 'spaceship']);
+
+        $orderIds = ['rcone.com' => 501, 'rctwo.com' => 502];
+
+        Http::fake(function (Request $request) use ($orderIds) {
+            $url = $request->url();
+            parse_str((string) parse_url($url, PHP_URL_QUERY), $query);
+
+            return match (true) {
+                str_contains($url, '/domains/search.json') => Http::response([
+                    'recsindb' => '2',
+                    'recsonpage' => '2',
+                    '1' => ['entity.description' => 'rcone.com', 'orders.orderid' => '501'],
+                    '2' => ['entity.description' => 'rctwo.com', 'orders.orderid' => '502'],
+                ]),
+                str_contains($url, '/domains/orderid.json') => Http::response(
+                    (string) ($orderIds[$query['domain-name']] ?? 0)
+                ),
+                str_contains($url, '/domains/details.json') => Http::response([
+                    'domainname' => array_search((int) $query['order-id'], $orderIds, true),
+                    'currentstatus' => 'Active',
+                    'creationtime' => (string) now()->subYear()->timestamp,
+                    'endtime' => (string) now()->addMonths(7)->timestamp,
+                    'ns1' => 'ns1.jamunasoft.com',
+                    'ns2' => 'ns2.jamunasoft.com',
+                ]),
+                default => Http::response(['status' => 'ERROR', 'message' => 'Unexpected: '.$url], 500),
+            };
+        });
+
+        $result = app(RegistrarManager::class)->for('resellcube')->syncAll();
+
+        $this->assertSame(2, $result['synced']);
+        $this->assertSame(2, $result['created']);
+        $this->assertSame([], $result['missing']);
+
+        $this->assertSame('resellcube', Domain::where('name', 'rcone.com')->value('registrar'));
+        $this->assertSame('resellcube', Domain::where('name', 'rctwo.com')->value('registrar'));
+        $this->assertNotNull(Domain::where('name', 'rctwo.com')->first()->expires_at);
+    }
+
     public function test_manager_falls_back_to_spaceship(): void
     {
         $manager = app(RegistrarManager::class);

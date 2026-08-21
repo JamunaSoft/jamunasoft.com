@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('app:send-follow-up-reminders')->dailyAt('08:00');
-Schedule::command('spaceship:sync')->dailyAt('04:00');
+Schedule::command('domains:sync')->dailyAt('04:00');
 Schedule::command('domains:send-renewal-reminders')->dailyAt('09:00');
 Schedule::command('billing:generate-invoices')->dailyAt('08:30');
 Schedule::command('billing:send-invoice-reminders')->dailyAt('09:30');
