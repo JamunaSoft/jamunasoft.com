@@ -68,6 +68,7 @@ class DomainSyncService
         $domain = Domain::withTrashed()->firstOrNew(['name' => $name]);
 
         $domain->fill([
+            'registrar' => 'spaceship',
             'lifecycle_status' => data_get($item, 'lifecycleStatus'),
             'verification_status' => data_get($item, 'verificationStatus'),
             'auto_renew' => (bool) data_get($item, 'autoRenew', false),

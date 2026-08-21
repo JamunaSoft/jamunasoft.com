@@ -119,6 +119,7 @@ class DomainOrderResource extends Resource
                 TextColumn::make('reference')->searchable()->copyable(),
                 TextColumn::make('domain_name')->searchable()->sortable(),
                 TextColumn::make('customer_name')->searchable()->toggleable(),
+                TextColumn::make('registrar')->badge()->color('gray')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('type')->badge()->color('gray'),
                 TextColumn::make('years')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('amount')->money('BDT')->sortable(),

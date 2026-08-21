@@ -44,6 +44,14 @@ class ManageDns extends Page
 
     public function loadRecords(): void
     {
+        // The in-panel DNS editor only talks to Spaceship for now.
+        if ($this->record->registrar !== 'spaceship') {
+            $this->records = [];
+            $this->loadError = 'DNS for this domain is managed by our support team — open a support ticket and we will apply your changes right away.';
+
+            return;
+        }
+
         try {
             $this->records = app(SpaceshipClient::class)->listDnsRecords($this->record->name)['items'];
             $this->loadError = null;
@@ -99,6 +107,7 @@ class ManageDns extends Page
         return [
             Action::make('addRecord')
                 ->label('Add record')
+                ->visible(fn () => $this->record->registrar === 'spaceship')
                 ->icon(Heroicon::OutlinedPlus)
                 ->schema([
                     Select::make('type')
@@ -165,6 +174,7 @@ class ManageDns extends Page
                 }),
             Action::make('nameservers')
                 ->label('Nameservers')
+                ->visible(fn () => $this->record->registrar === 'spaceship')
                 ->icon(Heroicon::OutlinedServerStack)
                 ->color('gray')
                 ->schema([

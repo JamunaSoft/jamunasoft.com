@@ -2,10 +2,10 @@
 
 namespace App\Services\Spaceship;
 
+use App\Services\Registrars\RegistrarException;
 use Illuminate\Http\Client\Response;
-use RuntimeException;
 
-class SpaceshipException extends RuntimeException
+class SpaceshipException extends RegistrarException
 {
     /**
      * @param  array<string, mixed>|null  $details  Field-level validation errors from the API, if any.

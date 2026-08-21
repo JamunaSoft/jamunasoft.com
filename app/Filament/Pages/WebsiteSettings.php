@@ -2,9 +2,11 @@
 
 namespace App\Filament\Pages;
 
+use App\Services\Registrars\RegistrarManager;
 use App\Support\Settings;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -96,6 +98,15 @@ class WebsiteSettings extends Page
                     ]),
 
                     Tab::make('Domains')->schema([
+                        Select::make('active_domain_registrar')
+                            ->label('Purchase registrar')
+                            ->options(RegistrarManager::PROVIDERS)
+                            ->default('spaceship')
+                            ->helperText('New registrations and the public availability search go through this provider. Renewals always use the registrar that already holds the domain. ResellCube needs RESELLCUBE_USER_ID and RESELLCUBE_API_KEY in .env.'),
+                        Textarea::make('domain_default_nameservers')
+                            ->label('Default nameservers')
+                            ->rows(3)
+                            ->helperText('One per line, at least two — required for ResellCube registrations (e.g. your hosting nameservers).'),
                         Textarea::make('domain_payment_instructions')
                             ->label('Payment instructions')
                             ->rows(3)

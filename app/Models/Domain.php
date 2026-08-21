@@ -12,7 +12,7 @@ class Domain extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name', 'user_id', 'lifecycle_status', 'verification_status',
+        'name', 'registrar', 'user_id', 'lifecycle_status', 'verification_status',
         'auto_renew', 'is_premium', 'privacy_level', 'nameserver_provider',
         'nameservers', 'contact_ids', 'epp_statuses', 'registered_at',
         'expires_at', 'last_synced_at', 'last_reminder_days', 'meta', 'internal_notes',

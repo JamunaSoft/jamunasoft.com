@@ -13,20 +13,14 @@ use App\Models\Domain;
 use App\Models\DomainOrder;
 use App\Models\Tld;
 use App\Models\User;
-use App\Services\Spaceship\DefaultContactService;
-use App\Services\Spaceship\DomainSyncService;
-use App\Services\Spaceship\SpaceshipClient;
-use App\Services\Spaceship\SpaceshipException;
+use App\Services\Registrars\RegistrarException;
+use App\Services\Registrars\RegistrarManager;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class DomainOrderService
 {
-    public function __construct(
-        protected SpaceshipClient $client,
-        protected DomainSyncService $syncService,
-        protected DefaultContactService $contactService,
-    ) {}
+    public function __construct(protected RegistrarManager $registrars) {}
 
     /**
      * Create an order in pending-payment state. Amount is computed from the
@@ -53,6 +47,12 @@ class DomainOrderService
             $amount = $tld->priceFor($type) * $years;
         }
 
+        // New registrations go through the admin-selected registrar; renewals
+        // must use whichever registrar already holds the domain.
+        $registrar = $type === DomainOrderType::Renew
+            ? (Domain::query()->where('name', $domainName)->value('registrar') ?? $this->registrars->activeKey())
+            : $this->registrars->activeKey();
+
         $order = DomainOrder::create([
             'reference' => DomainOrder::generateReference(),
             'user_id' => $customer['user_id'] ?? null,
@@ -60,6 +60,7 @@ class DomainOrderService
             'customer_email' => $customer['email'],
             'customer_phone' => $customer['phone'] ?? null,
             'domain_name' => $domainName,
+            'registrar' => $registrar,
             'type' => $type,
             'years' => $years,
             'amount' => $amount,
@@ -133,9 +134,9 @@ class DomainOrderService
             $result = match ($order->type) {
                 DomainOrderType::Register => $this->processRegistration($order),
                 DomainOrderType::Renew => $this->processRenewal($order),
-                DomainOrderType::Transfer => throw new SpaceshipException('Transfer orders are not automated yet — handle manually.'),
+                DomainOrderType::Transfer => throw new RegistrarException('Transfer orders are not automated yet — handle manually.'),
             };
-        } catch (SpaceshipException $e) {
+        } catch (RegistrarException $e) {
             $this->fail($order, $e->getMessage());
 
             return;
@@ -152,7 +153,7 @@ class DomainOrderService
      */
     public function complete(DomainOrder $order): void
     {
-        $domain = $this->syncService->syncByName($order->domain_name);
+        $domain = $this->registrars->for($order->registrar)->syncDomain($order->domain_name);
 
         // Guest orders get a client-panel account keyed by email, so the
         // customer can manage the domain at /client (via password reset).
@@ -198,26 +199,19 @@ class DomainOrderService
      */
     protected function processRegistration(DomainOrder $order): array
     {
-        $availability = $this->client->checkAvailability($order->domain_name);
+        $registrar = $this->registrars->for($order->registrar);
 
-        if (! SpaceshipClient::isAvailable($availability)) {
-            throw new SpaceshipException("{$order->domain_name} is no longer available for registration.");
+        $availability = $registrar->checkAvailability($order->domain_name);
+
+        if (! $availability['available']) {
+            throw new RegistrarException("{$order->domain_name} is no longer available for registration.");
         }
 
-        if (SpaceshipClient::isPremium($availability)) {
-            throw new SpaceshipException("{$order->domain_name} is a premium domain — register manually after checking the premium price.");
+        if ($availability['premium']) {
+            throw new RegistrarException("{$order->domain_name} is a premium domain — register manually after checking the premium price.");
         }
 
-        $contactId = $this->contactService->contactId();
-
-        $result = $this->client->registerDomain($order->domain_name, [
-            'registrant' => $contactId,
-            'admin' => $contactId,
-            'tech' => $contactId,
-            'billing' => $contactId,
-        ], years: $order->years, autoRenew: false, privacyLevel: 'high');
-
-        return ['operationId' => $result['operationId']];
+        return $registrar->register($order->domain_name, $order->years);
     }
 
     /**
@@ -225,19 +219,7 @@ class DomainOrderService
      */
     protected function processRenewal(DomainOrder $order): array
     {
-        $domain = Domain::query()->where('name', $order->domain_name)->first();
-
-        if ($domain?->expires_at === null) {
-            throw new SpaceshipException("{$order->domain_name} is not in the local domain list — sync from Spaceship before renewing.");
-        }
-
-        $result = $this->client->renewDomain(
-            $order->domain_name,
-            $order->years,
-            $domain->expires_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
-        );
-
-        return ['operationId' => $result['operationId']];
+        return $this->registrars->for($order->registrar)->renew($order->domain_name, $order->years);
     }
 
     protected function sendOrderEmails(DomainOrder $order): void

@@ -41,4 +41,10 @@ return [
         'base_url' => env('SPACESHIP_API_BASE_URL', 'https://spaceship.dev/api/v1'),
     ],
 
+    'resellcube' => [
+        'user_id' => env('RESELLCUBE_USER_ID'),
+        'api_key' => env('RESELLCUBE_API_KEY'),
+        'base_url' => env('RESELLCUBE_API_BASE_URL', 'https://manage.resellcube.com/api'),
+    ],
+
 ];

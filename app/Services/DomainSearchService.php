@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Tld;
-use App\Services\Spaceship\SpaceshipClient;
-use App\Services\Spaceship\SpaceshipException;
+use App\Services\Registrars\RegistrarException;
+use App\Services\Registrars\RegistrarManager;
 use Illuminate\Support\Facades\Cache;
 
 class DomainSearchService
@@ -12,7 +12,7 @@ class DomainSearchService
     /** How many TLD suggestions to check for a keyword-only search. */
     protected const MAX_SUGGESTIONS = 6;
 
-    public function __construct(protected SpaceshipClient $client) {}
+    public function __construct(protected RegistrarManager $registrars) {}
 
     /**
      * Check availability for a search query: an exact domain when the query
@@ -54,27 +54,27 @@ class DomainSearchService
                 continue;
             }
 
+            $registrar = $this->registrars->active();
+
             try {
                 $availability = Cache::remember(
-                    "domain-availability:{$candidate}",
+                    "domain-availability:{$registrar->key()}:{$candidate}",
                     now()->addMinutes(2),
-                    fn () => $this->client->checkAvailability($candidate),
+                    fn () => $registrar->checkAvailability($candidate),
                 );
-            } catch (SpaceshipException $e) {
+            } catch (RegistrarException $e) {
                 return [
                     'results' => $results,
                     'error' => __('The availability check is temporarily unavailable — please try again in a moment.'),
                 ];
             }
 
-            $premium = SpaceshipClient::isPremium($availability);
-
             $results[] = [
                 'domain' => $candidate,
                 'tld' => $tld->tld,
-                'available' => SpaceshipClient::isAvailable($availability),
-                'premium' => $premium,
-                'price' => $premium ? null : (float) $tld->register_price,
+                'available' => $availability['available'],
+                'premium' => $availability['premium'],
+                'price' => $availability['premium'] ? null : (float) $tld->register_price,
             ];
         }
 

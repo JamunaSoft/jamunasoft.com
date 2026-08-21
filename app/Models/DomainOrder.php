@@ -15,7 +15,7 @@ class DomainOrder extends Model
 
     protected $fillable = [
         'reference', 'user_id', 'customer_name', 'customer_email', 'customer_phone',
-        'domain_name', 'type', 'years', 'amount', 'currency', 'status',
+        'domain_name', 'registrar', 'type', 'years', 'amount', 'currency', 'status',
         'payment_method', 'payment_reference', 'spaceship_operation_id',
         'error_message', 'paid_at', 'completed_at', 'meta',
     ];

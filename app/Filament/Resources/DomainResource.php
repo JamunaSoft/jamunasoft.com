@@ -98,6 +98,7 @@ class DomainResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')->searchable()->sortable()->copyable(),
+                TextColumn::make('registrar')->badge()->color('gray')->toggleable(),
                 TextColumn::make('user.name')
                     ->label('Customer')
                     ->placeholder('Unassigned')
