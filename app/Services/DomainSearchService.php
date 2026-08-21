@@ -67,12 +67,12 @@ class DomainSearchService
                 ];
             }
 
-            $premium = (bool) data_get($availability, 'isPremium', false);
+            $premium = SpaceshipClient::isPremium($availability);
 
             $results[] = [
                 'domain' => $candidate,
                 'tld' => $tld->tld,
-                'available' => (bool) data_get($availability, 'isAvailable', data_get($availability, 'available', false)),
+                'available' => SpaceshipClient::isAvailable($availability),
                 'premium' => $premium,
                 'price' => $premium ? null : (float) $tld->register_price,
             ];

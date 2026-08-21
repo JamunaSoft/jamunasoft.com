@@ -77,6 +77,28 @@ class SpaceshipClient
     }
 
     /**
+     * The API reports availability as result: "available" | "taken".
+     *
+     * @param  array<string, mixed>  $availability  response from checkAvailability()
+     */
+    public static function isAvailable(array $availability): bool
+    {
+        $result = strtolower((string) data_get($availability, 'result', ''));
+
+        return $result === 'available' || (bool) data_get($availability, 'isAvailable', false);
+    }
+
+    /**
+     * @param  array<string, mixed>  $availability  response from checkAvailability()
+     */
+    public static function isPremium(array $availability): bool
+    {
+        return strtolower((string) data_get($availability, 'result', '')) === 'premium'
+            || filled(data_get($availability, 'premiumPricing'))
+            || (bool) data_get($availability, 'isPremium', false);
+    }
+
+    /**
      * Register a domain. Contact ids must be created via saveContact() first.
      *
      * @param  array{registrant: string, admin: string, tech: string, billing: string}  $contacts

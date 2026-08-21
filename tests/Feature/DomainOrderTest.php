@@ -55,7 +55,7 @@ class DomainOrderTest extends TestCase
             $method = $request->method();
 
             if (str_contains($url, '/available')) {
-                return Http::response(['isAvailable' => true, 'isPremium' => false]);
+                return Http::response(['domain' => basename(dirname($url)), 'result' => 'available', 'premiumPricing' => []]);
             }
 
             if (str_contains($url, '/contacts')) {
@@ -166,7 +166,7 @@ class DomainOrderTest extends TestCase
 
     public function test_taken_domain_cannot_be_ordered(): void
     {
-        Http::fake(['*/available*' => Http::response(['isAvailable' => false])]);
+        Http::fake(['*/available*' => Http::response(['domain' => 'google.com', 'result' => 'taken', 'premiumPricing' => []])]);
 
         $this->from('/domains')->post('/domains/order', [
             'name' => 'Rahim Uddin',

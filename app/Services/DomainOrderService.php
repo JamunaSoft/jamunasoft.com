@@ -200,11 +200,11 @@ class DomainOrderService
     {
         $availability = $this->client->checkAvailability($order->domain_name);
 
-        if (! (bool) data_get($availability, 'isAvailable', data_get($availability, 'available', false))) {
+        if (! SpaceshipClient::isAvailable($availability)) {
             throw new SpaceshipException("{$order->domain_name} is no longer available for registration.");
         }
 
-        if ((bool) data_get($availability, 'isPremium', false)) {
+        if (SpaceshipClient::isPremium($availability)) {
             throw new SpaceshipException("{$order->domain_name} is a premium domain — register manually after checking the premium price.");
         }
 

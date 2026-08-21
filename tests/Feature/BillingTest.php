@@ -46,7 +46,7 @@ class BillingTest extends TestCase
             $method = $request->method();
 
             if (str_contains($url, '/available')) {
-                return Http::response(['isAvailable' => true, 'isPremium' => false]);
+                return Http::response(['domain' => basename(dirname($url)), 'result' => 'available', 'premiumPricing' => []]);
             }
 
             if (str_contains($url, '/contacts')) {
