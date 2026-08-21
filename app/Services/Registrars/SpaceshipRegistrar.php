@@ -61,6 +61,11 @@ class SpaceshipRegistrar implements Registrar
         return ['operationId' => $result['operationId']];
     }
 
+    public function updateNameservers(string $domain, array $hosts): void
+    {
+        $this->client->updateNameservers($domain, $hosts);
+    }
+
     public function syncDomain(string $domain): Domain
     {
         return $this->sync->syncByName($domain);

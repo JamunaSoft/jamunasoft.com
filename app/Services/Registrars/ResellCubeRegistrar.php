@@ -34,22 +34,21 @@ class ResellCubeRegistrar implements Registrar
 
     public function register(string $domain, int $years): array
     {
-        $nameservers = $this->defaultNameservers();
-
-        if (count($nameservers) < 2) {
-            throw new RegistrarException('ResellCube registrations need default nameservers — fill "Default nameservers" in the Domains tab of Website Settings (one per line, at least two).');
-        }
-
         $this->client->registerDomain(
             $domain,
             $years,
             $this->customerId(),
             $this->contactId(),
-            $nameservers,
+            default_nameservers(),
         );
 
         // The LogicBoxes platform settles registrations synchronously.
         return ['operationId' => null];
+    }
+
+    public function updateNameservers(string $domain, array $hosts): void
+    {
+        $this->client->modifyNameservers($this->client->orderIdByDomain($domain), $hosts);
     }
 
     public function renew(string $domain, int $years): array
@@ -249,16 +248,6 @@ class ResellCubeRegistrar implements Registrar
         }
 
         throw new RegistrarException('Registrant phone must be in +<countrycode>.<number> format, e.g. +880.1700000000.');
-    }
-
-    /** @return array<int, string> */
-    protected function defaultNameservers(): array
-    {
-        return collect(explode("\n", (string) settings('domain_default_nameservers', '')))
-            ->map(fn (string $host) => strtolower(trim($host)))
-            ->filter()
-            ->values()
-            ->all();
     }
 
     /**

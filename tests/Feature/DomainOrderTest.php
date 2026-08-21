@@ -66,6 +66,10 @@ class DomainOrderTest extends TestCase
                 return Http::response(['status' => 'success']);
             }
 
+            if (str_contains($url, '/nameservers')) {
+                return Http::response([]);
+            }
+
             if ($method === 'POST' && preg_match('#/domains/[^/]+$#', $url)) {
                 return Http::response([], 202, ['spaceship-async-operationid' => 'OP123']);
             }
@@ -156,6 +160,10 @@ class DomainOrderTest extends TestCase
         $domain = Domain::where('name', 'mytestshop.com')->firstOrFail();
         $this->assertSame('registered', $domain->lifecycle_status);
         $this->assertSame($user->id, $domain->user_id);
+        $this->assertSame(['cl1.jamunasoft.com', 'cl2.jamunasoft.com'], $domain->nameservers);
+
+        Http::assertSent(fn (Request $request) => $request->method() === 'PUT'
+            && str_ends_with($request->url(), '/domains/mytestshop.com/nameservers'));
 
         Mail::assertQueued(DomainOrderCompleted::class);
 

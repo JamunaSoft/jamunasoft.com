@@ -106,7 +106,8 @@ class WebsiteSettings extends Page
                         Textarea::make('domain_default_nameservers')
                             ->label('Default nameservers')
                             ->rows(3)
-                            ->helperText('One per line, at least two — required for ResellCube registrations (e.g. your hosting nameservers).'),
+                            ->placeholder("cl1.jamunasoft.com\ncl2.jamunasoft.com")
+                            ->helperText('One per line. New registrations are automatically pointed here. Leave empty to use cl1/cl2.jamunasoft.com.'),
                         Textarea::make('domain_payment_instructions')
                             ->label('Payment instructions')
                             ->rows(3)

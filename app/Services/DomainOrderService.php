@@ -155,6 +155,23 @@ class DomainOrderService
     {
         $domain = $this->registrars->for($order->registrar)->syncDomain($order->domain_name);
 
+        // Fresh registrations get pointed at our default nameservers, so the
+        // domain immediately serves the hosting cluster's default page.
+        if ($order->type === DomainOrderType::Register) {
+            $defaults = default_nameservers();
+            $current = array_map('strtolower', (array) $domain->nameservers);
+
+            if ($defaults !== [] && array_diff($defaults, $current) !== []) {
+                try {
+                    $this->registrars->for($order->registrar)->updateNameservers($order->domain_name, $defaults);
+                    $domain->update(['nameservers' => $defaults, 'nameserver_provider' => 'custom']);
+                } catch (RegistrarException $e) {
+                    // Registration itself succeeded — a human can fix NS later.
+                    Log::warning('Default nameserver setup failed: '.$e->getMessage(), ['order' => $order->reference]);
+                }
+            }
+        }
+
         // Guest orders get a client-panel account keyed by email, so the
         // customer can manage the domain at /client (via password reset).
         if ($order->user_id === null) {

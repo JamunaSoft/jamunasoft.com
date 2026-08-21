@@ -12,6 +12,27 @@ if (! function_exists('settings')) {
     }
 }
 
+if (! function_exists('default_nameservers')) {
+    /**
+     * Default nameservers for newly registered domains: the
+     * "domain_default_nameservers" setting (one per line), falling back to
+     * the company's cluster nameservers.
+     *
+     * @return array<int, string>
+     */
+    function default_nameservers(): array
+    {
+        $configured = collect(explode("\n", (string) settings('domain_default_nameservers', '')))
+            ->map(fn (string $host) => strtolower(trim($host)))
+            ->filter()
+            ->values();
+
+        return $configured->count() >= 2
+            ? $configured->all()
+            : ['cl1.jamunasoft.com', 'cl2.jamunasoft.com'];
+    }
+}
+
 if (! function_exists('settings_t')) {
     /**
      * Get a translatable setting: when the active locale is not the fallback,

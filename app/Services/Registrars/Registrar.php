@@ -35,6 +35,13 @@ interface Registrar
     public function renew(string $domain, int $years): array;
 
     /**
+     * Point the domain at the given nameservers.
+     *
+     * @param  array<int, string>  $hosts
+     */
+    public function updateNameservers(string $domain, array $hosts): void;
+
+    /**
      * Fetch the domain from the provider and upsert the local Domain row.
      */
     public function syncDomain(string $domain): Domain;

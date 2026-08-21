@@ -132,6 +132,18 @@ class ResellCubeClient
         ]);
     }
 
+    /**
+     * @param  array<int, string>  $nameservers
+     * @return array<string, mixed>
+     */
+    public function modifyNameservers(int $orderId, array $nameservers): array
+    {
+        return $this->call('POST', '/domains/modify-ns.json', [
+            'order-id' => $orderId,
+            'ns' => $nameservers,
+        ]);
+    }
+
     /** @return array<string, mixed> */
     public function renewDomain(int $orderId, int $years, int $currentExpiryTimestamp): array
     {

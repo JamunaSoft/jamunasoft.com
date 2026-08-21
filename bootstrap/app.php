@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ServeParkedDomainPage;
 use App\Http\Middleware\SetLocale;
 use App\Models\Redirect;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             SetLocale::class,
+        ]);
+
+        $middleware->web(prepend: [
+            ServeParkedDomainPage::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
