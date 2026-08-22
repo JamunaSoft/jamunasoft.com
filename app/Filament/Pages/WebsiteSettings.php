@@ -9,6 +9,7 @@ use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Tabs;
@@ -98,6 +99,9 @@ class WebsiteSettings extends Page
                     ]),
 
                     Tab::make('Domains')->schema([
+                        Toggle::make('domain_auto_invoice')
+                            ->label('Auto-invoice domain renewals')
+                            ->helperText('WHMCS-style: 30 days before a customer domain expires, a renewal order + invoice is created and emailed automatically. Off = reminder emails only.'),
                         Select::make('active_domain_registrar')
                             ->label('Purchase registrar')
                             ->options(RegistrarManager::PROVIDERS)

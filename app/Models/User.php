@@ -53,6 +53,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(ClientService::class);
     }
 
+    public function tickets(): HasMany
+    {
+        return $this->hasMany(Ticket::class);
+    }
+
     /**
      * Only users holding at least one admin-panel role may sign in to /admin.
      * The client panel is open to every authenticated user (customers have

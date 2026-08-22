@@ -2,10 +2,16 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\DomainOrderType;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\DomainResource\Pages\ListDomains;
 use App\Models\Domain;
+use App\Models\Tld;
+use App\Services\DomainOrderService;
+use App\Services\Registrars\RegistrarException;
+use App\Services\Registrars\RegistrarManager;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -13,6 +19,7 @@ use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
@@ -133,6 +140,53 @@ class DomainResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                Action::make('renew')
+                    ->label('Renew')
+                    ->icon(Heroicon::OutlinedArrowPath)
+                    ->color('success')
+                    ->visible(fn (Domain $record) => $record->user_id !== null && Tld::matching($record->name) !== null)
+                    ->schema(fn (Domain $record) => [
+                        Select::make('years')
+                            ->options(array_combine(range(1, 5), range(1, 5)))
+                            ->default(1)
+                            ->required()
+                            ->helperText('৳'.number_format((float) Tld::matching($record->name)?->renew_price, 0).' per year — creates a renewal order + invoice for '.$record->user?->email.'.'),
+                    ])
+                    ->action(function (Domain $record, array $data) {
+                        $order = app(DomainOrderService::class)->create(
+                            customer: ['name' => $record->user->name, 'email' => $record->user->email, 'user_id' => $record->user_id],
+                            domainName: $record->name,
+                            type: DomainOrderType::Renew,
+                            years: (int) $data['years'],
+                        );
+
+                        Notification::make()
+                            ->title("Renewal order {$order->reference} created and invoiced")
+                            ->body('Confirm the payment on the Domain Orders page once received.')
+                            ->success()
+                            ->send();
+                    }),
+                Action::make('syncOne')
+                    ->label('Sync')
+                    ->icon(Heroicon::OutlinedCloudArrowDown)
+                    ->color('gray')
+                    ->action(function (Domain $record) {
+                        try {
+                            app(RegistrarManager::class)->for($record->registrar)->syncDomain($record->name);
+                            Notification::make()->title('Domain synced from '.$record->registrar)->success()->send();
+                        } catch (RegistrarException $e) {
+                            Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
+                        }
+                    }),
+                Action::make('eppCode')
+                    ->label('EPP code')
+                    ->icon(Heroicon::OutlinedKey)
+                    ->color('gray')
+                    ->visible(fn (Domain $record) => filled(data_get($record->meta, 'domsecret')))
+                    ->modalHeading(fn (Domain $record) => 'EPP / transfer code — '.$record->name)
+                    ->modalDescription(fn (Domain $record) => (string) data_get($record->meta, 'domsecret'))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

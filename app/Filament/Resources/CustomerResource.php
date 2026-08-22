@@ -9,6 +9,7 @@ use App\Filament\Resources\CustomerResource\RelationManagers\DomainOrdersRelatio
 use App\Filament\Resources\CustomerResource\RelationManagers\DomainsRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\InvoicesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\ServicesRelationManager;
+use App\Filament\Resources\CustomerResource\RelationManagers\TicketsRelationManager;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\EditAction;
@@ -108,6 +109,7 @@ class CustomerResource extends Resource
             ServicesRelationManager::class,
             InvoicesRelationManager::class,
             DomainOrdersRelationManager::class,
+            TicketsRelationManager::class,
         ];
     }
 

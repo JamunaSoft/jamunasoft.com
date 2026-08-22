@@ -41,6 +41,12 @@ return [
         'base_url' => env('SPACESHIP_API_BASE_URL', 'https://spaceship.dev/api/v1'),
     ],
 
+    'whmcs' => [
+        'url' => env('WHMCS_API_URL'),
+        'identifier' => env('WHMCS_API_IDENTIFIER'),
+        'secret' => env('WHMCS_API_SECRET'),
+    ],
+
     'resellcube' => [
         'user_id' => env('RESELLCUBE_USER_ID'),
         'api_key' => env('RESELLCUBE_API_KEY'),
