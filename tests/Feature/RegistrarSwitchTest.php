@@ -31,7 +31,7 @@ class RegistrarSwitchTest extends TestCase
             'services.spaceship.base_url' => 'https://spaceship.dev/api/v1',
             'services.resellcube.user_id' => '12345',
             'services.resellcube.api_key' => 'rc-test-key',
-            'services.resellcube.base_url' => 'https://manage.resellcube.com/api',
+            'services.resellcube.base_url' => 'https://httpapi.com/api',
         ]);
 
         Tld::create(['tld' => 'com', 'register_price' => 1600, 'renew_price' => 1600, 'transfer_price' => 1600, 'is_active' => true]);
@@ -53,7 +53,7 @@ class RegistrarSwitchTest extends TestCase
         Http::fake(function (Request $request) {
             $url = $request->url();
 
-            if (str_contains($url, 'manage.resellcube.com')) {
+            if (str_contains($url, 'httpapi.com')) {
                 return match (true) {
                     str_contains($url, '/domains/available.json') => Http::response([
                         'rctest.com' => ['status' => 'available', 'classkey' => 'domcno'],
@@ -93,7 +93,7 @@ class RegistrarSwitchTest extends TestCase
         $this->assertTrue($results[0]['available']);
         $this->assertSame(1600.0, $results[0]['price']);
 
-        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'manage.resellcube.com/api/domains/available.json'));
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'httpapi.com/api/domains/available.json'));
     }
 
     public function test_registration_goes_through_resellcube_when_selected(): void

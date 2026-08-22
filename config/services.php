@@ -44,7 +44,9 @@ return [
     'resellcube' => [
         'user_id' => env('RESELLCUBE_USER_ID'),
         'api_key' => env('RESELLCUBE_API_KEY'),
-        'base_url' => env('RESELLCUBE_API_BASE_URL', 'https://manage.resellcube.com/api'),
+        // ResellCube is a LogicBoxes white-label; the reseller API lives on
+        // the LogicBoxes core endpoint, not on manage.resellcube.com.
+        'base_url' => env('RESELLCUBE_API_BASE_URL', 'https://httpapi.com/api'),
     ],
 
 ];
