@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\DomainResource\Pages;
 
 use App\Filament\Resources\DomainResource;
+use App\Filament\Widgets\DomainStatsOverview;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
 use Filament\Actions\Action;
@@ -13,6 +14,13 @@ use Filament\Support\Icons\Heroicon;
 class ListDomains extends ListRecords
 {
     protected static string $resource = DomainResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            DomainStatsOverview::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

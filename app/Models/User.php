@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Filament\Auth\Notifications\ResetPassword as FilamentResetPasswordNotification;
+use Filament\Facades\Filament;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -31,6 +33,18 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Filament uses panel-specific reset routes, unlike Laravel's default
+     * password.reset route. This keeps links correct for admin and client.
+     */
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        $notification = app(FilamentResetPasswordNotification::class, ['token' => $token]);
+        $notification->url = Filament::getResetPasswordUrl($token, $this);
+
+        $this->notify($notification);
     }
 
     public function domains(): HasMany

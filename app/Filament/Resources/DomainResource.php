@@ -12,6 +12,7 @@ use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -140,53 +141,124 @@ class DomainResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
-                Action::make('renew')
-                    ->label('Renew')
-                    ->icon(Heroicon::OutlinedArrowPath)
-                    ->color('success')
-                    ->visible(fn (Domain $record) => $record->user_id !== null && Tld::matching($record->name) !== null)
+                Action::make('nameservers')
+                    ->label('Nameservers')
+                    ->icon(Heroicon::OutlinedServerStack)
+                    ->color('gray')
+                    ->modalHeading(fn (Domain $record) => 'Update nameservers - '.$record->name)
                     ->schema(fn (Domain $record) => [
-                        Select::make('years')
-                            ->options(array_combine(range(1, 5), range(1, 5)))
-                            ->default(1)
+                        Textarea::make('hosts')
+                            ->label('Nameservers (one per line)')
+                            ->rows(4)
+                            ->default(implode("\n", $record->nameservers ?? []))
                             ->required()
-                            ->helperText('৳'.number_format((float) Tld::matching($record->name)?->renew_price, 0).' per year — creates a renewal order + invoice for '.$record->user?->email.'.'),
+                            ->helperText('At least two nameservers are required. Changing these may disable DNS records managed by the current provider.'),
                     ])
                     ->action(function (Domain $record, array $data) {
-                        $order = app(DomainOrderService::class)->create(
-                            customer: ['name' => $record->user->name, 'email' => $record->user->email, 'user_id' => $record->user_id],
-                            domainName: $record->name,
-                            type: DomainOrderType::Renew,
-                            years: (int) $data['years'],
-                        );
+                        $hosts = collect(preg_split('/\r\n|\r|\n/', (string) ($data['hosts'] ?? '')) ?: [])
+                            ->map(fn (string $host) => strtolower(trim($host)))
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
+
+                        if (count($hosts) < 2) {
+                            Notification::make()
+                                ->title('At least two nameservers are required')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        if (count($hosts) > 13 || collect($hosts)->contains(
+                            fn (string $host) => filter_var($host, FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME) === false
+                        )) {
+                            Notification::make()
+                                ->title('Enter valid nameservers')
+                                ->body('Use hostnames such as ns1.example.com, one per line, with no more than 13 entries.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        try {
+                            app(RegistrarManager::class)->for($record->registrar)->updateNameservers($record->name, $hosts);
+                        } catch (RegistrarException $e) {
+                            Notification::make()
+                                ->title('Could not update nameservers')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $record->update([
+                            'nameserver_provider' => 'custom',
+                            'nameservers' => $hosts,
+                            'last_synced_at' => now(),
+                        ]);
 
                         Notification::make()
-                            ->title("Renewal order {$order->reference} created and invoiced")
-                            ->body('Confirm the payment on the Domain Orders page once received.')
+                            ->title('Nameservers updated')
+                            ->body('Changes may take a few hours to propagate worldwide.')
                             ->success()
                             ->send();
                     }),
-                Action::make('syncOne')
-                    ->label('Sync')
-                    ->icon(Heroicon::OutlinedCloudArrowDown)
-                    ->color('gray')
-                    ->action(function (Domain $record) {
-                        try {
-                            app(RegistrarManager::class)->for($record->registrar)->syncDomain($record->name);
-                            Notification::make()->title('Domain synced from '.$record->registrar)->success()->send();
-                        } catch (RegistrarException $e) {
-                            Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
-                        }
-                    }),
-                Action::make('eppCode')
-                    ->label('EPP code')
-                    ->icon(Heroicon::OutlinedKey)
-                    ->color('gray')
-                    ->visible(fn (Domain $record) => filled(data_get($record->meta, 'domsecret')))
-                    ->modalHeading(fn (Domain $record) => 'EPP / transfer code — '.$record->name)
-                    ->modalDescription(fn (Domain $record) => (string) data_get($record->meta, 'domsecret'))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Close'),
+                ActionGroup::make([
+                    Action::make('renew')
+                        ->label('Renew')
+                        ->icon(Heroicon::OutlinedArrowPath)
+                        ->color('success')
+                        ->visible(fn (Domain $record) => $record->user_id !== null && Tld::matching($record->name) !== null)
+                        ->schema(fn (Domain $record) => [
+                            Select::make('years')
+                                ->options(array_combine(range(1, 5), range(1, 5)))
+                                ->default(1)
+                                ->required()
+                                ->helperText('৳'.number_format((float) Tld::matching($record->name)?->renew_price, 0).' per year - creates a renewal order + invoice for '.$record->user?->email.'.'),
+                        ])
+                        ->action(function (Domain $record, array $data) {
+                            $order = app(DomainOrderService::class)->create(
+                                customer: ['name' => $record->user->name, 'email' => $record->user->email, 'user_id' => $record->user_id],
+                                domainName: $record->name,
+                                type: DomainOrderType::Renew,
+                                years: (int) $data['years'],
+                            );
+
+                            Notification::make()
+                                ->title("Renewal order {$order->reference} created and invoiced")
+                                ->body('Confirm the payment on the Domain Orders page once received.')
+                                ->success()
+                                ->send();
+                        }),
+                    Action::make('syncOne')
+                        ->label('Sync')
+                        ->icon(Heroicon::OutlinedCloudArrowDown)
+                        ->color('gray')
+                        ->action(function (Domain $record) {
+                            try {
+                                app(RegistrarManager::class)->for($record->registrar)->syncDomain($record->name);
+                                Notification::make()->title('Domain synced from '.$record->registrar)->success()->send();
+                            } catch (RegistrarException $e) {
+                                Notification::make()->title('Sync failed')->body($e->getMessage())->danger()->send();
+                            }
+                        }),
+                    Action::make('eppCode')
+                        ->label('EPP code')
+                        ->icon(Heroicon::OutlinedKey)
+                        ->color('gray')
+                        ->visible(fn (Domain $record) => filled(data_get($record->meta, 'domsecret')))
+                        ->modalHeading(fn (Domain $record) => 'EPP / transfer code - '.$record->name)
+                        ->modalDescription(fn (Domain $record) => (string) data_get($record->meta, 'domsecret'))
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Close'),
+                ])
+                    ->label('More')
+                    ->icon(Heroicon::OutlinedEllipsisVertical)
+                    ->color('gray'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
