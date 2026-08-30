@@ -78,7 +78,11 @@ class RecurringBillingService
             ->with('user')
             ->each(function (Invoice $invoice) use (&$sent) {
                 try {
-                    Mail::to($invoice->user->email)->queue(new InvoiceReminder($invoice));
+                    $mail = new InvoiceReminder($invoice);
+                    Mail::to($invoice->user->email)
+                        ->bcc(config('mail.billing_bcc'))
+                        ->queue($mail);
+                    $this->invoices->logEmail($invoice, 'invoice_reminder', $mail->envelope()->subject, $invoice->user->email);
                 } catch (\Throwable $e) {
                     Log::warning('Invoice reminder failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
 

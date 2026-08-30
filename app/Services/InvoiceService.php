@@ -8,6 +8,7 @@ use App\Enums\InvoiceStatus;
 use App\Mail\InvoiceCreated;
 use App\Mail\InvoicePaid;
 use App\Models\ClientService;
+use App\Models\EmailLog;
 use App\Models\DomainOrder;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -89,7 +90,11 @@ class InvoiceService
     public function sendInvoice(Invoice $invoice): void
     {
         try {
-            Mail::to($invoice->user->email)->queue(new InvoiceCreated($invoice));
+            $mail = new InvoiceCreated($invoice);
+            Mail::to($invoice->user->email)
+                ->bcc(config('mail.billing_bcc'))
+                ->queue($mail);
+            $this->logEmail($invoice, 'invoice_created', $mail->envelope()->subject, $invoice->user->email);
         } catch (\Throwable $e) {
             Log::warning('Invoice email failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
         }
@@ -127,13 +132,32 @@ class InvoiceService
             }
 
             try {
-                Mail::to($invoice->user->email)->queue(new InvoicePaid($invoice));
+                $mail = new InvoicePaid($invoice);
+                Mail::to($invoice->user->email)
+                    ->bcc(config('mail.billing_bcc'))
+                    ->queue($mail);
+                $this->logEmail($invoice, 'invoice_paid', $mail->envelope()->subject, $invoice->user->email);
             } catch (\Throwable $e) {
                 Log::warning('Invoice receipt email failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
             }
         }
 
         return $payment;
+    }
+
+    public function logEmail(Invoice $invoice, string $type, string $subject, string $recipient): void
+    {
+        EmailLog::create([
+            'user_id' => $invoice->user_id,
+            'type' => $type,
+            'subject' => $subject,
+            'recipient' => $recipient,
+            'bcc' => config('mail.billing_bcc'),
+            'status' => 'queued',
+            'related_type' => Invoice::class,
+            'related_id' => $invoice->id,
+            'queued_at' => now(),
+        ]);
     }
 
     protected function runPaidSideEffects(Invoice $invoice, ?string $method, ?string $transactionId): void

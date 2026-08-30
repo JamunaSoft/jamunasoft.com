@@ -10,6 +10,7 @@ use App\Filament\Resources\CustomerResource\RelationManagers\DomainsRelationMana
 use App\Filament\Resources\CustomerResource\RelationManagers\InvoicesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\ServicesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\TicketsRelationManager;
+use App\Filament\Resources\CustomerResource\RelationManagers\EmailLogsRelationManager;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\EditAction;
@@ -71,6 +72,22 @@ class CustomerResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
+            Grid::make(4)->schema([
+                TextEntry::make('invoices_count')
+                    ->label('Invoices')
+                    ->state(fn (User $record) => $record->invoices()->count()),
+                TextEntry::make('open_balance')
+                    ->label('Open balance')
+                    ->state(fn (User $record) => $record->invoices()->unpaid()->sum('total') - $record->invoices()->unpaid()->sum('amount_paid'))
+                    ->money('BDT')
+                    ->color('danger'),
+                TextEntry::make('email_activity')
+                    ->label('Emails sent')
+                    ->state(fn (User $record) => $record->emailLogs()->count()),
+                TextEntry::make('support_activity')
+                    ->label('Open tickets')
+                    ->state(fn (User $record) => $record->tickets()->awaitingStaff()->count()),
+            ]),
             Grid::make(3)->schema([
                 TextEntry::make('name'),
                 TextEntry::make('email')->copyable(),
@@ -110,6 +127,7 @@ class CustomerResource extends Resource
             InvoicesRelationManager::class,
             DomainOrdersRelationManager::class,
             TicketsRelationManager::class,
+            EmailLogsRelationManager::class,
         ];
     }
 

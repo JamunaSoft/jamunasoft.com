@@ -115,4 +115,6 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    'billing_bcc' => env('BILLING_BCC', 'billing@jamunasoft.com'),
+
 ];
