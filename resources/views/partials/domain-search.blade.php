@@ -1,5 +1,5 @@
 {{-- Domain search band: submits to the domain availability page. --}}
-<section class="bg-navy-900 py-16" aria-label="{{ __('Domain search') }}">
+<section class="border-t border-white/10 bg-navy-900 py-16" aria-label="{{ __('Domain search') }}">
     <div class="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <p class="text-xs font-semibold uppercase tracking-widest text-accent-400">{{ __('Domains') }}</p>
         <h2 class="mt-2 text-3xl font-bold text-white sm:text-4xl">{{ __('Find Your Perfect Domain') }}</h2>

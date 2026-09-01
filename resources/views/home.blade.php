@@ -51,6 +51,9 @@
         </div>
     </section>
 
+    {{-- Domain search --}}
+    @include('partials.domain-search')
+
     {{-- Stats --}}
     @if (is_array($stats) && $stats)
         <section class="border-b border-slate-100 bg-white">
@@ -217,9 +220,6 @@
             @endif
         </div>
     </section>
-
-    {{-- Domain search --}}
-    @include('partials.domain-search')
 
     {{-- Client logos --}}
     @if ($clientLogos->isNotEmpty())
