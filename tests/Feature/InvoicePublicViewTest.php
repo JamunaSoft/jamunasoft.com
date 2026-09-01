@@ -93,6 +93,33 @@ class InvoicePublicViewTest extends TestCase
         $this->assertNull($invoice->refresh()->whatsappUrl());
     }
 
+    public function test_previous_due_from_earlier_invoices_shows_everywhere(): void
+    {
+        $older = $this->makeInvoice();
+        $newer = Invoice::create([
+            'reference' => Invoice::generateReference(),
+            'user_id' => $older->user_id,
+            'status' => InvoiceStatus::Unpaid,
+            'subtotal' => 2000,
+            'total' => 2000,
+            'due_at' => now()->addDays(7),
+        ]);
+        $newer->items()->create(['title' => 'SSL', 'quantity' => 1, 'unit_price' => 2000, 'total' => 2000]);
+
+        $this->assertSame(4500.0, $newer->previousDueAmount());
+        $this->assertSame(0.0, $older->previousDueAmount(), 'The oldest invoice has no previous due.');
+
+        // Public page shows previous due + combined payable.
+        $this->get($newer->publicUrl())
+            ->assertOk()
+            ->assertSee('Previous due (earlier invoices)')
+            ->assertSee('6,500.00');
+
+        // Email carries it too.
+        $this->assertStringContainsString('Previous Due', (new InvoiceCreated($newer))->render());
+        $this->assertStringNotContainsString('Previous Due', (new InvoiceCreated($older->fresh()))->render());
+    }
+
     public function test_invoice_email_links_to_the_public_page(): void
     {
         $invoice = $this->makeInvoice();

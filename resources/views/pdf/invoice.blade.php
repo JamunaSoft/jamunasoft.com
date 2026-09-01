@@ -331,6 +331,16 @@ $client = $invoice->user;
                 <td colspan="3" class="balance-label">Balance</td>
                 <td class="balance" style="color: {{ $balance > 0 ? '#C43D3D' : '#1E9E58' }};">{{ $fmt($balance) }}</td>
             </tr>
+            @if (($previousDue = $invoice->previousDueAmount()) > 0)
+                <tr>
+                    <td colspan="3" class="balance-label">Previous Due (earlier invoices)</td>
+                    <td class="balance" style="color: #C43D3D;">{{ $fmt($previousDue) }}</td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="balance-label" style="color: #24313F;">Total Payable</td>
+                    <td class="balance" style="color: #C43D3D;">{{ $fmt($balance + $previousDue) }}</td>
+                </tr>
+            @endif
         </tbody>
     </table>
 </div>

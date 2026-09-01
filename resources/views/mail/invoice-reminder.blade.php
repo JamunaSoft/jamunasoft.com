@@ -10,6 +10,10 @@ This is a friendly reminder that invoice **{{ $invoice->reference }}** is due on
 @endif
 
 **Amount due:** ৳{{ number_format($invoice->balance(), 2) }}
+@if (($previousDue = $invoice->previousDueAmount()) > 0)
+<br>**Previous due (earlier invoices):** ৳{{ number_format($previousDue, 2) }}<br>
+**Total payable:** ৳{{ number_format($invoice->balance() + $previousDue, 2) }}
+@endif
 
 @foreach ($invoice->items as $item)
 - {{ $item->displayTitle() }}

@@ -4,8 +4,10 @@ namespace App\Filament\Resources\CustomerResource\Pages;
 
 use App\Filament\Resources\CustomerResource;
 use App\Models\User;
+use App\Services\InvoiceService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Support\Icons\Heroicon;
@@ -33,6 +35,39 @@ class ViewCustomer extends ViewRecord
                     session(['password_hash_web' => $record->getAuthPassword()]);
 
                     $this->redirect('/client');
+                }),
+            Action::make('addPreviousBalance')
+                ->label('Add previous balance')
+                ->icon(Heroicon::OutlinedBanknotes)
+                ->color('gray')
+                ->visible(fn (User $record) => ! $record->roles()->exists())
+                ->modalDescription('For dues from before this system: creates an unpaid "Previous balance" invoice (not emailed) so payments and reminders track it normally.')
+                ->schema([
+                    TextInput::make('amount')
+                        ->numeric()
+                        ->prefix('৳')
+                        ->required()
+                        ->minValue(1),
+                    TextInput::make('note')
+                        ->placeholder('Dues up to Aug 2026')
+                        ->helperText('Shown under the item title on the invoice.'),
+                ])
+                ->action(function (User $record, array $data) {
+                    $invoice = app(InvoiceService::class)->create(
+                        userId: $record->id,
+                        items: [[
+                            'title' => 'Previous balance',
+                            'description' => $data['note'] ?: 'Dues carried over from before '.now()->format('M Y'),
+                            'unit_price' => (float) $data['amount'],
+                        ]],
+                        sendEmail: false,
+                    );
+
+                    Notification::make()
+                        ->title("Invoice {$invoice->reference} created for the previous balance")
+                        ->body('Review it on the Invoices tab, then email it if needed.')
+                        ->success()
+                        ->send();
                 }),
             Action::make('sendPasswordLink')
                 ->label('Send password link')

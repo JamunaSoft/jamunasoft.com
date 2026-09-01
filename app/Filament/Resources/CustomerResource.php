@@ -81,6 +81,11 @@ class CustomerResource extends Resource
                 ->dehydrated(fn (?string $state) => filled($state))
                 ->visible(fn (string $operation) => $operation === 'edit')
                 ->helperText('Leave blank to keep the current password. New clients receive a set-password link by email automatically.'),
+            TextInput::make('opening_balance')
+                ->label('Previous balance (৳)')
+                ->numeric()
+                ->visible(fn (string $operation) => $operation === 'create')
+                ->helperText('Old dues from before this system. Creates an unpaid "Previous balance" invoice automatically (not emailed) so payments and reminders track it normally.'),
             Grid::make(2)->schema([
                 TextInput::make('company_name')
                     ->label('Company / organization')

@@ -6,6 +6,7 @@ use App\Enums\InvoiceStatus;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Filament\Resources\CustomerResource\Pages\ViewCustomer;
 use App\Mail\ClientWelcome;
+use App\Mail\InvoiceCreated;
 use App\Mail\InvoiceReminder;
 use App\Models\Invoice;
 use App\Models\User;
@@ -75,6 +76,44 @@ class ClientProfileToolsTest extends TestCase
             && str_contains($mail->setPasswordUrl, '/client/'));
 
         $this->assertSame('client_welcome', $client->emailLogs()->latest()->first()->type);
+    }
+
+    public function test_creating_a_client_with_previous_balance_creates_an_opening_invoice(): void
+    {
+        Mail::fake();
+        $admin = $this->superAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(ListCustomers::class)
+            ->callAction('create', data: [
+                'name' => 'Old Client',
+                'email' => 'old-client@example.com',
+                'opening_balance' => 7500,
+            ])
+            ->assertHasNoActionErrors();
+
+        $client = User::where('email', 'old-client@example.com')->first();
+        $invoice = $client->invoices()->first();
+
+        $this->assertNotNull($invoice);
+        $this->assertSame('7500.00', (string) $invoice->total);
+        $this->assertSame('Previous balance', $invoice->items->first()->title);
+        Mail::assertNotQueued(InvoiceCreated::class);
+    }
+
+    public function test_previous_balance_can_be_added_from_the_profile_later(): void
+    {
+        Mail::fake();
+        $admin = $this->superAdmin();
+        $client = User::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ViewCustomer::class, ['record' => $client->id])
+            ->callAction('addPreviousBalance', data: ['amount' => 3000, 'note' => 'Dues up to Aug 2026']);
+
+        $invoice = $client->invoices()->first();
+        $this->assertSame('3000.00', (string) $invoice->total);
+        $this->assertSame('Dues up to Aug 2026', $invoice->items->first()->description);
     }
 
     public function test_admin_can_resend_the_password_link_from_the_profile(): void

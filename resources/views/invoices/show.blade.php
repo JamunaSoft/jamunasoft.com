@@ -104,6 +104,16 @@
                                 <td colspan="2" class="py-3 pr-4 text-right text-sm font-semibold {{ $balance > 0 ? 'text-rose-600' : 'text-emerald-700' }}">{{ __('Balance Due') }}</td>
                                 <td class="py-3 text-right text-lg font-bold {{ $balance > 0 ? 'text-rose-600' : 'text-emerald-700' }}">৳{{ number_format($balance, 2) }}</td>
                             </tr>
+                            @if (($previousDue = $invoice->previousDueAmount()) > 0)
+                                <tr>
+                                    <td colspan="2" class="py-2.5 pr-4 text-right text-sm text-slate-500">{{ __('Previous due (earlier invoices)') }}</td>
+                                    <td class="py-2.5 text-right text-rose-600">৳{{ number_format($previousDue, 2) }}</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2" class="py-3 pr-4 text-right text-sm font-semibold text-navy-900">{{ __('Total payable') }}</td>
+                                    <td class="py-3 text-right text-lg font-bold text-rose-600">৳{{ number_format($balance + $previousDue, 2) }}</td>
+                                </tr>
+                            @endif
                         </tfoot>
                     </table>
                 </div>

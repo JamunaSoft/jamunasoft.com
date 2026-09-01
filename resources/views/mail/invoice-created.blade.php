@@ -8,6 +8,10 @@ This is a notice that an invoice has been generated on {{ $invoice->created_at->
 **Invoice {{ $invoice->reference }}**<br>
 **Amount Due:** ৳{{ number_format($invoice->balance(), 2) }}<br>
 **Due Date:** {{ $invoice->due_at?->format('l, F jS, Y') ?? '—' }}
+@if (($previousDue = $invoice->previousDueAmount()) > 0)
+<br>**Previous Due (earlier invoices):** ৳{{ number_format($previousDue, 2) }}<br>
+**Total Payable:** ৳{{ number_format($invoice->balance() + $previousDue, 2) }}
+@endif
 
 ## Invoice Items
 

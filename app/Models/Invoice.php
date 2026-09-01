@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class Invoice extends Model
 {
@@ -103,6 +104,20 @@ class Invoice extends Model
         );
 
         return 'https://wa.me/'.$phone.'?text='.rawurlencode($message);
+    }
+
+    /**
+     * What the client still owes on EARLIER unpaid invoices — shown on
+     * invoice PDFs/emails as "Previous due" so one document carries the
+     * client's full payable picture.
+     */
+    public function previousDueAmount(): float
+    {
+        return round((float) static::query()
+            ->where('user_id', $this->user_id)
+            ->where('id', '<', $this->id)
+            ->unpaid()
+            ->sum(DB::raw('total - amount_paid')), 2);
     }
 
     public function balance(): float
