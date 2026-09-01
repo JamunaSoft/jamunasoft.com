@@ -9,6 +9,7 @@ use App\Models\EmailLog;
 use App\Models\Expense;
 use App\Models\LedgerEntry;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Services\InvoiceService;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,7 +105,7 @@ class AccountsAndDigestTest extends TestCase
             'expensed_at' => now(),
             'category' => ExpenseCategory::ServerHosting,
             'description' => 'VPS bill',
-            'vendor' => 'Hetzner',
+            'vendor_id' => Vendor::create(['name' => 'Hetzner'])->id,
             'amount' => 1500,
         ]);
 

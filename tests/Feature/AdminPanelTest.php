@@ -57,7 +57,7 @@ class AdminPanelTest extends TestCase
             '/admin/newsletter-subscribers', '/admin/redirects', '/admin/social-links',
             '/admin/users', '/admin/users/create', '/admin/roles',
             '/admin/website-settings', '/admin/homepage-content',
-            '/admin/expenses', '/admin/transactions', '/admin/reports',
+            '/admin/expenses', '/admin/transactions', '/admin/vendors', '/admin/reports',
         ];
 
         foreach ($urls as $url) {

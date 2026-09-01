@@ -54,7 +54,16 @@ class ExpenseResource extends Resource
                     ->required()
                     ->placeholder('Hetzner VPS — September')
                     ->columnSpan(2),
-                TextInput::make('vendor')->placeholder('Hetzner / Spaceship / …'),
+                Select::make('vendor_id')
+                    ->label('Vendor')
+                    ->relationship('vendor', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->createOptionForm([
+                        TextInput::make('name')->required()->unique('vendors', 'name'),
+                        TextInput::make('phone'),
+                    ])
+                    ->placeholder('Shohoz Motion / Hetzner / …'),
                 TextInput::make('amount')->numeric()->prefix('৳')->required(),
                 Select::make('method')
                     ->options([
@@ -84,7 +93,7 @@ class ExpenseResource extends Resource
                 TextColumn::make('expensed_at')->label('Date')->date()->sortable(),
                 TextColumn::make('category')->badge()->color('gray'),
                 TextColumn::make('description')->searchable()->limit(50),
-                TextColumn::make('vendor')->placeholder('—')->searchable()->toggleable(),
+                TextColumn::make('vendor.name')->label('Vendor')->placeholder('—')->searchable()->toggleable(),
                 TextColumn::make('amount')
                     ->money('BDT')
                     ->sortable()
