@@ -14,5 +14,6 @@ Schedule::command('domains:send-renewal-reminders')->dailyAt('09:00');
 Schedule::command('billing:generate-invoices')->dailyAt('08:30');
 Schedule::command('billing:generate-domain-renewal-invoices')->dailyAt('08:45');
 Schedule::command('billing:send-invoice-reminders')->dailyAt('09:30');
+Schedule::command('billing:daily-digest')->dailyAt('10:00');
 Schedule::command('sitemap:generate')->dailyAt('02:00');
 Schedule::command('queue:prune-failed --hours=168')->daily();

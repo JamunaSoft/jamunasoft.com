@@ -4,6 +4,7 @@ namespace App\Filament\Pages\Reports;
 
 use App\Models\ClientService;
 use App\Models\Domain;
+use App\Models\Expense;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Ticket;
@@ -21,6 +22,13 @@ class ReportsStatsOverview extends StatsOverviewWidget
             now()->subMonthNoOverflow()->endOfMonth(),
         ])->sum('amount');
 
+        $expensesThisMonth = (float) Expense::whereBetween('expensed_at', [now()->startOfMonth(), now()])->sum('amount');
+        $expensesLastMonth = (float) Expense::whereBetween('expensed_at', [
+            now()->subMonthNoOverflow()->startOfMonth(),
+            now()->subMonthNoOverflow()->endOfMonth(),
+        ])->sum('amount');
+        $profitThisMonth = $thisMonth - $expensesThisMonth;
+
         $outstanding = (float) Invoice::unpaid()->sum(DB::raw('total - amount_paid'));
         $overdueCount = Invoice::unpaid()->whereDate('due_at', '<', now())->count();
 
@@ -37,6 +45,12 @@ class ReportsStatsOverview extends StatsOverviewWidget
             Stat::make('Revenue this month', '৳'.number_format($thisMonth, 0))
                 ->description('Last month: ৳'.number_format($lastMonth, 0))
                 ->color($thisMonth >= $lastMonth ? 'success' : 'warning'),
+            Stat::make('Expenses this month', '৳'.number_format($expensesThisMonth, 0))
+                ->description('Last month: ৳'.number_format($expensesLastMonth, 0))
+                ->color('gray'),
+            Stat::make('Profit this month', '৳'.number_format($profitThisMonth, 0))
+                ->description($thisMonth > 0 ? number_format($profitThisMonth / $thisMonth * 100, 0).'% margin' : 'No revenue yet')
+                ->color($profitThisMonth >= 0 ? 'success' : 'danger'),
             Stat::make('Outstanding', '৳'.number_format($outstanding, 0))
                 ->description($overdueCount.' overdue '.str('invoice')->plural($overdueCount))
                 ->color($overdueCount > 0 ? 'danger' : 'gray'),

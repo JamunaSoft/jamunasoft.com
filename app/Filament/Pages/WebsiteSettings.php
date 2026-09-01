@@ -179,6 +179,9 @@ class WebsiteSettings extends Page
                             ->label('Invoice note (NB)')
                             ->rows(2)
                             ->helperText('Highlighted note on invoice PDFs, e.g. the hosting-expiry warning. Leave blank to use the default.'),
+                        TextInput::make('digest_recipients')
+                            ->label('Daily summary recipients')
+                            ->helperText('Comma-separated emails for the 10 AM daily automation summary. Empty = the billing BCC address. Enter "off" to disable.'),
                     ]),
                 ])->persistTab(),
             ]);
