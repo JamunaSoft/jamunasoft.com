@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\InvoiceStatus;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Filament\Resources\CustomerResource\Pages\ViewCustomer;
+use App\Filament\Resources\CustomerResource\RelationManagers\InvoicesRelationManager;
 use App\Mail\ClientWelcome;
 use App\Mail\InvoiceCreated;
 use App\Mail\InvoiceReminder;
@@ -114,6 +115,39 @@ class ClientProfileToolsTest extends TestCase
         $invoice = $client->invoices()->first();
         $this->assertSame('3000.00', (string) $invoice->total);
         $this->assertSame('Dues up to Aug 2026', $invoice->items->first()->description);
+    }
+
+    public function test_invoices_can_be_created_and_merged_from_the_profile(): void
+    {
+        Mail::fake();
+        $admin = $this->superAdmin();
+        $client = User::factory()->create();
+
+        $rm = fn () => Livewire::actingAs($admin)->test(
+            InvoicesRelationManager::class,
+            ['ownerRecord' => $client, 'pageClass' => ViewCustomer::class],
+        );
+
+        // Create two invoices straight from the profile tab.
+        foreach ([1000, 2500] as $price) {
+            $rm()->callTableAction('create', data: [
+                'due_at' => now()->addDays(7)->toDateString(),
+                'items' => [['title' => 'Service '.$price, 'quantity' => 1, 'unit_price' => $price]],
+                'discount' => 0,
+            ])->assertHasNoTableActionErrors();
+        }
+
+        $invoices = $client->invoices()->get();
+        $this->assertCount(2, $invoices);
+        $this->assertSame('1000.00', (string) $invoices->first()->total, 'Totals are recalculated.');
+        Mail::assertNotQueued(InvoiceCreated::class);
+
+        // Merge them via the profile's bulk action.
+        $rm()->callTableBulkAction('merge', $invoices->pluck('id')->all());
+
+        $merged = $client->invoices()->where('status', InvoiceStatus::Unpaid)->first();
+        $this->assertSame('3500.00', (string) $merged->refresh()->total);
+        $this->assertCount(2, $merged->items);
     }
 
     public function test_admin_can_resend_the_password_link_from_the_profile(): void
