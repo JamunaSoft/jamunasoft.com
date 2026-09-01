@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Client\Widgets\PromoProducts;
+use App\Filament\Client\Widgets\RenewalAlerts;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -39,11 +41,14 @@ class ClientPanelProvider extends PanelProvider
                 fn (): string => view('filament.impersonation-banner')->render(),
             )
             ->discoverResources(in: app_path('Filament/Client/Resources'), for: 'App\Filament\Client\Resources')
+            ->discoverPages(in: app_path('Filament/Client/Pages'), for: 'App\Filament\Client\Pages')
             ->pages([
                 Dashboard::class,
             ])
             ->widgets([
+                RenewalAlerts::class,
                 AccountWidget::class,
+                PromoProducts::class,
             ])
             ->middleware([
                 EncryptCookies::class,
