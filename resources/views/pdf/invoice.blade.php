@@ -94,7 +94,7 @@ $client = $invoice->user;
     table.layout td { vertical-align: top; }
 
     .tagline { font-size: 8.5px; color: #5D6E7E; margin-top: 4px; }
-    .from { text-align: right; font-size: 10.5px; color: #5D6E7E; padding-top: 42px; vertical-align: bottom; }
+    .from { text-align: right; font-size: 10.5px; color: #5D6E7E; padding-top: 10px; }
     .from .co { font-size: 12px; font-weight: bold; color: #24313F; }
 
     .h1 {
@@ -201,9 +201,9 @@ $client = $invoice->user;
 </div>
 
 {{-- title + meta --}}
-<table class="layout" style="margin-top: 10px;">
+<table class="layout" style="margin-top: 6px;">
     <tr>
-        <td style="vertical-align: bottom;">
+        <td style="vertical-align: top; padding-top: 10px;">
             <div class="h1">INVOICE</div>
             <div class="h1-bar"></div>
         </td>
@@ -284,8 +284,10 @@ $client = $invoice->user;
     </tbody>
 </table>
 <table class="totals">
-    <tr><td class="k">Sub Total</td><td class="v">{{ $fmt($invoice->subtotal) }}</td></tr>
-    <tr><td class="k">Discount</td><td class="v">@if ((float) $invoice->discount > 0)&minus;@endif{{ $fmt($invoice->discount) }}</td></tr>
+    @if ((float) $invoice->discount > 0)
+        <tr><td class="k">Sub Total</td><td class="v">{{ $fmt($invoice->subtotal) }}</td></tr>
+        <tr><td class="k">Discount</td><td class="v">&minus;{{ $fmt($invoice->discount) }}</td></tr>
+    @endif
     <tr class="grand"><td class="k" style="color: #1D3765;">Total</td><td class="v">{{ $fmt($invoice->total) }}</td></tr>
 </table>
 <div class="price-note">{{ settings('invoice_price_note', '* All prices are excluding of VAT & AIT') }}</div>
