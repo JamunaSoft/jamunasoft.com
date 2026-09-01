@@ -17,6 +17,7 @@ use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\QuotationViewController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SolutionController;
+use App\Http\Controllers\StatementController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
@@ -60,6 +61,13 @@ Route::get('/impersonate/leave', function () {
 
     return redirect('/admin/customers/'.$client);
 })->middleware('auth')->name('impersonate.leave');
+
+Route::get('/statements/client/{user}', [StatementController::class, 'client'])
+    ->middleware('auth')
+    ->name('statements.client');
+Route::get('/statements/vendor/{vendor}', [StatementController::class, 'vendor'])
+    ->middleware('auth')
+    ->name('statements.vendor');
 
 Route::get('/invoice/{reference}/{token}', [InvoiceViewController::class, 'show'])->name('invoice.show');
 Route::get('/invoice/{reference}/{token}/pdf', [InvoiceViewController::class, 'pdf'])->name('invoice.pdf.public');

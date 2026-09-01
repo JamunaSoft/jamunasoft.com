@@ -31,7 +31,7 @@ class InvoicePdfRenderer
     /**
      * The uploaded brand logo as a data URI so DomPDF needs no file access.
      */
-    protected function logoDataUri(): ?string
+    public function logoDataUri(): ?string
     {
         $path = null;
         $setting = settings('logo_path');

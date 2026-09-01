@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\InvoiceService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -35,6 +36,24 @@ class ViewCustomer extends ViewRecord
                     session(['password_hash_web' => $record->getAuthPassword()]);
 
                     $this->redirect('/client');
+                }),
+            Action::make('statement')
+                ->label('Statement')
+                ->icon(Heroicon::OutlinedDocumentChartBar)
+                ->color('gray')
+                ->visible(fn (User $record) => ! $record->roles()->exists())
+                ->modalDescription('Bank-statement-style PDF: invoices and payments with a running balance. Leave dates empty for the full history — with a from-date, the earlier balance is carried forward on the first row.')
+                ->schema([
+                    DatePicker::make('from')->label('From (optional)'),
+                    DatePicker::make('to')->label('To (optional)'),
+                ])
+                ->modalSubmitActionLabel('Download statement')
+                ->action(function (User $record, array $data) {
+                    return redirect()->to(route('statements.client', array_filter([
+                        'user' => $record->id,
+                        'from' => $data['from'] ?? null,
+                        'to' => $data['to'] ?? null,
+                    ])));
                 }),
             Action::make('addPreviousBalance')
                 ->label('Add previous balance')
