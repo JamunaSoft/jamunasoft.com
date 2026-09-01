@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\InvoiceStatus;
+use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Filament\Resources\CustomerResource\Pages\ViewCustomer;
+use App\Mail\ClientWelcome;
 use App\Mail\InvoiceReminder;
 use App\Models\Invoice;
 use App\Models\User;
@@ -49,6 +51,43 @@ class ClientProfileToolsTest extends TestCase
         ]);
 
         return $invoice;
+    }
+
+    public function test_creating_a_client_needs_no_password_and_emails_a_set_password_link(): void
+    {
+        Mail::fake();
+        $admin = $this->superAdmin();
+
+        Livewire::actingAs($admin)
+            ->test(ListCustomers::class)
+            ->callAction('create', data: [
+                'name' => 'New Client',
+                'email' => 'new-client@example.com',
+            ])
+            ->assertHasNoActionErrors();
+
+        $client = User::where('email', 'new-client@example.com')->first();
+
+        $this->assertNotNull($client);
+        $this->assertNotNull($client->password);
+
+        Mail::assertQueued(ClientWelcome::class, fn ($mail) => $mail->hasTo('new-client@example.com')
+            && str_contains($mail->setPasswordUrl, '/client/'));
+
+        $this->assertSame('client_welcome', $client->emailLogs()->latest()->first()->type);
+    }
+
+    public function test_admin_can_resend_the_password_link_from_the_profile(): void
+    {
+        Mail::fake();
+        $admin = $this->superAdmin();
+        $client = User::factory()->create();
+
+        Livewire::actingAs($admin)
+            ->test(ViewCustomer::class, ['record' => $client->id])
+            ->callAction('sendPasswordLink');
+
+        Mail::assertQueued(ClientWelcome::class, fn ($mail) => $mail->hasTo($client->email));
     }
 
     public function test_admin_can_impersonate_a_client_and_return(): void

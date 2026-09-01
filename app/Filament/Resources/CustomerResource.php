@@ -13,11 +13,14 @@ use App\Filament\Resources\CustomerResource\RelationManagers\InvoicesRelationMan
 use App\Filament\Resources\CustomerResource\RelationManagers\QuotationsRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\ServicesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\TicketsRelationManager;
+use App\Mail\ClientWelcome;
+use App\Models\EmailLog;
 use App\Models\Payment;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
@@ -30,6 +33,8 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Password;
 use UnitEnum;
 
 class CustomerResource extends Resource
@@ -74,8 +79,8 @@ class CustomerResource extends Resource
                 ->password()
                 ->revealable()
                 ->dehydrated(fn (?string $state) => filled($state))
-                ->required(fn (string $operation) => $operation === 'create')
-                ->helperText('The client can also set it themselves via "Forgot password" on the client panel.'),
+                ->visible(fn (string $operation) => $operation === 'edit')
+                ->helperText('Leave blank to keep the current password. New clients receive a set-password link by email automatically.'),
             Grid::make(2)->schema([
                 TextInput::make('company_name')
                     ->label('Company / organization')
@@ -187,6 +192,28 @@ class CustomerResource extends Resource
                 ViewAction::make(),
                 EditAction::make(),
             ]);
+    }
+
+    /**
+     * Email the client a link to set (or reset) their client-panel password.
+     * Used on account creation and by the "Send password link" action.
+     */
+    public static function sendSetPasswordLink(User $user): void
+    {
+        $token = Password::createToken($user);
+        $url = Filament::getPanel('client')->getResetPasswordUrl($token, $user);
+
+        $mail = new ClientWelcome($user, $url);
+        Mail::to($user->email)->queue($mail);
+
+        EmailLog::create([
+            'user_id' => $user->id,
+            'type' => 'client_welcome',
+            'subject' => $mail->envelope()->subject,
+            'recipient' => $user->email,
+            'status' => 'queued',
+            'queued_at' => now(),
+        ]);
     }
 
     public static function getRelations(): array
