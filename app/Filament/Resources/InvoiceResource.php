@@ -226,6 +226,13 @@ class InvoiceResource extends Resource
 
                         Notification::make()->title('Invoice emailed to '.$record->user->email)->success()->send();
                     }),
+                Action::make('whatsapp')
+                    ->label('WhatsApp')
+                    ->icon(Heroicon::OutlinedChatBubbleLeftEllipsis)
+                    ->color('success')
+                    ->visible(fn (Invoice $record) => $record->status === InvoiceStatus::Unpaid && $record->whatsappUrl() !== null)
+                    ->url(fn (Invoice $record) => $record->whatsappUrl())
+                    ->openUrlInNewTab(),
                 Action::make('remind')
                     ->label('Send reminder')
                     ->icon(Heroicon::OutlinedBellAlert)

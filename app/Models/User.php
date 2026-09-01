@@ -59,6 +59,24 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * The client's phone in wa.me format (digits only, with country code).
+     * Bangladeshi numbers get 880 prefixed; already-international numbers
+     * pass through. Null when no phone is on file.
+     */
+    public function whatsappNumber(): ?string
+    {
+        $digits = preg_replace('/\D+/', '', (string) $this->phone) ?: '';
+
+        return match (true) {
+            $digits === '' => null,
+            str_starts_with($digits, '880') => $digits,
+            str_starts_with($digits, '0') => '880'.substr($digits, 1),
+            strlen($digits) === 10 && str_starts_with($digits, '1') => '880'.$digits,
+            default => $digits,
+        };
+    }
+
+    /**
      * All inboxes that should receive billing/service emails: the login
      * email plus the optional secondary (billing contact) email.
      *

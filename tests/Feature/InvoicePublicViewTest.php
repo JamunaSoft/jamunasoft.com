@@ -75,6 +75,24 @@ class InvoicePublicViewTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_whatsapp_link_normalizes_bd_numbers_and_carries_the_public_url(): void
+    {
+        $invoice = $this->makeInvoice();
+
+        foreach (['01763151200', '+880 1763-151200', '8801763151200', '1763151200'] as $phone) {
+            $invoice->user->update(['phone' => $phone]);
+            $this->assertSame('8801763151200', $invoice->user->refresh()->whatsappNumber(), "phone: {$phone}");
+        }
+
+        $url = $invoice->refresh()->whatsappUrl();
+        $this->assertStringStartsWith('https://wa.me/8801763151200?text=', $url);
+        $this->assertStringContainsString(rawurlencode($invoice->reference), $url);
+        $this->assertStringContainsString(rawurlencode($invoice->publicUrl()), $url);
+
+        $invoice->user->update(['phone' => null]);
+        $this->assertNull($invoice->refresh()->whatsappUrl());
+    }
+
     public function test_invoice_email_links_to_the_public_page(): void
     {
         $invoice = $this->makeInvoice();

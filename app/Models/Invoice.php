@@ -80,6 +80,31 @@ class Invoice extends Model
         return route('invoice.show', ['reference' => $this->reference, 'token' => $this->token]);
     }
 
+    /**
+     * WhatsApp click-to-chat link with a prefilled message pointing to the
+     * public invoice page. Null when the client has no phone number.
+     */
+    public function whatsappUrl(): ?string
+    {
+        $phone = $this->user?->whatsappNumber();
+
+        if ($phone === null) {
+            return null;
+        }
+
+        $message = sprintf(
+            'Dear %s, your invoice %s of ৳%s from %s is due on %s. View & pay online: %s',
+            $this->user->name,
+            $this->reference,
+            number_format((float) $this->total, 2),
+            settings('company_name', config('app.name')),
+            $this->due_at?->format('d M Y') ?? 'receipt of this message',
+            $this->publicUrl(),
+        );
+
+        return 'https://wa.me/'.$phone.'?text='.rawurlencode($message);
+    }
+
     public function balance(): float
     {
         return round((float) $this->total - (float) $this->amount_paid, 2);
