@@ -143,6 +143,13 @@ class WebsiteSettings extends Page
                             ->minValue(1)
                             ->placeholder('7')
                             ->helperText('Recurring service invoices are generated and emailed this many days before the due date. E.g. 14 = a bill due 15 Sep goes out on 1 Sep.'),
+                        TextInput::make('invoice_generation_day')
+                            ->label('Monthly billing day (optional)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->maxValue(28)
+                            ->placeholder('e.g. 1')
+                            ->helperText('Set a day of the month (e.g. 1) to send ALL renewals due in the following 31 days on that one day — every client gets billed the same date regardless of their due date. Leave empty to bill purely by lead time. The lead time still acts as a safety net for services added mid-month.'),
                         TextInput::make('invoice_tagline')
                             ->label('Invoice tagline')
                             ->placeholder('Your Gateway to Innovation, Powered by AARISH ENTERPRISE')

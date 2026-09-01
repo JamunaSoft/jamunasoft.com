@@ -32,11 +32,23 @@ class RecurringBillingService
         $generated = [];
 
         $aheadDays = max(1, (int) settings('invoice_ahead_days', self::INVOICE_AHEAD_DAYS));
+        $window = now()->addDays($aheadDays);
+
+        // Monthly batch day: on this day of the month, bill everything due in
+        // the next 31 days at once — so every client's renewal goes out the
+        // same day (e.g. the 1st) no matter when in the month it is due. On
+        // other days the lead-time window still runs as a safety net for
+        // services added mid-month.
+        $batchDay = (int) settings('invoice_generation_day', 0);
+
+        if ($batchDay >= 1 && now()->day === $batchDay) {
+            $window = max($window, now()->addDays(31));
+        }
 
         $dueServices = ClientService::query()
             ->active()
             ->whereNotNull('next_due_at')
-            ->where('next_due_at', '<=', now()->addDays($aheadDays))
+            ->where('next_due_at', '<=', $window)
             ->with('user')
             ->get()
             ->reject(fn (ClientService $service) => $service->hasOpenInvoice());

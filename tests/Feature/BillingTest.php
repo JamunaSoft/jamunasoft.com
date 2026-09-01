@@ -297,6 +297,38 @@ class BillingTest extends TestCase
         Settings::flush();
     }
 
+    public function test_monthly_billing_day_batches_the_whole_month(): void
+    {
+        Mail::fake();
+
+        $makeService = fn (int $dueInDays) => ClientService::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'Hosting',
+            'billing_cycle' => BillingCycle::Monthly,
+            'price' => 3500,
+            'status' => ClientServiceStatus::Active,
+            'next_due_at' => now()->addDays($dueInDays),
+        ]);
+
+        $makeService(20); // outside the 7-day lead window
+
+        // Today is not the batch day: nothing happens.
+        Settings::set(['invoice_generation_day' => now()->addDays(2)->day]);
+        $this->assertCount(0, app(RecurringBillingService::class)->generateDueInvoices());
+
+        // Today IS the batch day: everything due within 31 days is billed.
+        Settings::set(['invoice_generation_day' => now()->day]);
+        $this->assertCount(1, app(RecurringBillingService::class)->generateDueInvoices());
+
+        // Safety net: a service added mid-month, due in 3 days, is still
+        // billed on a non-batch day via the lead-time window.
+        Settings::set(['invoice_generation_day' => now()->addDays(2)->day]);
+        $makeService(3);
+        $this->assertCount(1, app(RecurringBillingService::class)->generateDueInvoices());
+
+        Settings::flush();
+    }
+
     public function test_invoice_all_services_bills_everything_now_without_emailing(): void
     {
         Mail::fake();
