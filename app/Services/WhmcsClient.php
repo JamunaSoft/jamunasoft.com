@@ -42,15 +42,47 @@ class WhmcsClient
     }
 
     /**
+     * Full profile of one client: companyname, phonenumber, address1,
+     * city, postcode, country, ...
+     *
+     * @return array<string, mixed>
+     */
+    public function clientDetails(int $clientId): array
+    {
+        return $this->call('GetClientsDetails', ['clientid' => $clientId]);
+    }
+
+    /**
+     * All invoices with the given status (Unpaid, Paid, Cancelled, ...).
+     *
      * @return array<int, array<string, mixed>>
      */
-    protected function paginate(string $action, string $itemsPath): array
+    public function invoicesByStatus(string $status): array
+    {
+        return $this->paginate('GetInvoices', 'invoices.invoice', ['status' => $status]);
+    }
+
+    /**
+     * One invoice with its line items and balance.
+     *
+     * @return array<string, mixed>
+     */
+    public function invoice(int $invoiceId): array
+    {
+        return $this->call('GetInvoice', ['invoiceid' => $invoiceId]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<int, array<string, mixed>>
+     */
+    protected function paginate(string $action, string $itemsPath, array $extra = []): array
     {
         $items = [];
         $start = 0;
 
         do {
-            $page = $this->call($action, ['limitstart' => $start, 'limitnum' => 100]);
+            $page = $this->call($action, [...$extra, 'limitstart' => $start, 'limitnum' => 100]);
             $pageItems = (array) data_get($page, $itemsPath, []);
 
             $items = [...$items, ...$pageItems];

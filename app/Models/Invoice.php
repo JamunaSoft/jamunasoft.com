@@ -113,9 +113,15 @@ class Invoice extends Model
      */
     public function previousDueAmount(): float
     {
+        // Compound ordering so backdated imports (older date, newer id)
+        // still count as "previous" for later invoices.
         return round((float) static::query()
             ->where('user_id', $this->user_id)
-            ->where('id', '<', $this->id)
+            ->where(fn (Builder $query) => $query
+                ->where('created_at', '<', $this->created_at)
+                ->orWhere(fn (Builder $inner) => $inner
+                    ->where('created_at', $this->created_at)
+                    ->where('id', '<', $this->id)))
             ->unpaid()
             ->sum(DB::raw('total - amount_paid')), 2);
     }
