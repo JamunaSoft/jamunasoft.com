@@ -87,6 +87,14 @@ class HomepageContent extends Page
                         ])->defaultItems(0),
                     ]),
 
+                    Tab::make('Client Logos')->schema([
+                        TextInput::make('clients_heading')
+                            ->label('Section heading')
+                            ->placeholder('Trusted by Businesses Across Bangladesh')
+                            ->helperText('The logo strip shows every active portfolio item that has a Client Logo uploaded (Portfolio → Edit → Client logo). Titles come from the client name.'),
+                        TextInput::make('clients_heading_bn')->label('Section heading (Bengali)'),
+                    ]),
+
                     Tab::make('Final CTA')->schema([
                         TextInput::make('cta_heading'),
                         TextInput::make('cta_heading_bn')->label('CTA heading (Bengali)'),

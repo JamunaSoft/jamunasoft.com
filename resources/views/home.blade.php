@@ -218,6 +218,11 @@
         </div>
     </section>
 
+    {{-- Client logos --}}
+    @if ($clientLogos->isNotEmpty())
+        @include('partials.client-logos')
+    @endif
+
     {{-- Testimonials --}}
     @if ($testimonials->isNotEmpty())
         <section class="bg-white py-20">
