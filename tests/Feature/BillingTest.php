@@ -225,6 +225,55 @@ class BillingTest extends TestCase
         $this->assertSame(ClientServiceStatus::Active, $service->status);
     }
 
+    public function test_due_services_of_one_client_are_consolidated_into_one_invoice(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $otherUser = User::factory()->create();
+
+        $makeService = fn (User $owner, string $name, float $price, int $dueInDays) => ClientService::create([
+            'user_id' => $owner->id,
+            'name' => $name,
+            'billing_cycle' => BillingCycle::Monthly,
+            'price' => $price,
+            'status' => ClientServiceStatus::Active,
+            'next_due_at' => now()->addDays($dueInDays),
+        ]);
+
+        $maintenance = $makeService($user, 'Website Maintenance', 2500, 5);
+        $hosting = $makeService($user, 'Web Hosting (VPS - BDIX)', 3500, 3);
+        $boosting = $makeService($user, 'FB Boosting (30,000 +-)', 30000, 5);
+        $otherService = $makeService($otherUser, 'Other Client Hosting', 1000, 4);
+
+        $invoices = app(RecurringBillingService::class)->generateDueInvoices();
+
+        // One consolidated invoice for the first client, one for the other.
+        $this->assertCount(2, $invoices);
+
+        $invoice = app(InvoiceService::class)->openInvoiceFor('client_service', $maintenance->id);
+        $this->assertCount(3, $invoice->items);
+        $this->assertSame('36000.00', (string) $invoice->total);
+        $this->assertTrue($invoice->due_at->isSameDay($hosting->next_due_at), 'Due date follows the earliest service.');
+        $this->assertNotSame($invoice->id, app(InvoiceService::class)->openInvoiceFor('client_service', $otherService->id)->id);
+
+        // Idempotent: nothing new while the invoice stays open.
+        $this->assertCount(0, app(RecurringBillingService::class)->generateDueInvoices());
+
+        // Paying the one invoice advances every bundled service.
+        $expected = [
+            $maintenance->id => $maintenance->next_due_at->copy()->addMonthNoOverflow(),
+            $hosting->id => $hosting->next_due_at->copy()->addMonthNoOverflow(),
+            $boosting->id => $boosting->next_due_at->copy()->addMonthNoOverflow(),
+        ];
+
+        app(InvoiceService::class)->recordPayment($invoice, 36000, 'bank');
+
+        foreach ($expected as $id => $date) {
+            $this->assertTrue(ClientService::find($id)->next_due_at->isSameDay($date));
+        }
+    }
+
     public function test_invoice_reminders_are_throttled(): void
     {
         Mail::fake();

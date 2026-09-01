@@ -19,7 +19,9 @@ class RecurringBillingService
 
     /**
      * Generate invoices for active services whose next due date is within the
-     * look-ahead window. Idempotent: a service with an open invoice is skipped.
+     * look-ahead window. All of a client's due services are consolidated into
+     * ONE invoice (one line item each) — paying it advances every service's
+     * next due date. Idempotent: a service with an open invoice is skipped.
      *
      * @return array<int, Invoice>
      */
@@ -27,32 +29,36 @@ class RecurringBillingService
     {
         $generated = [];
 
-        ClientService::query()
+        $dueServices = ClientService::query()
             ->active()
             ->whereNotNull('next_due_at')
             ->where('next_due_at', '<=', now()->addDays(self::INVOICE_AHEAD_DAYS))
             ->with('user')
-            ->each(function (ClientService $service) use (&$generated) {
-                if ($service->hasOpenInvoice()) {
-                    return;
-                }
+            ->get()
+            ->reject(fn (ClientService $service) => $service->hasOpenInvoice());
 
-                $generated[] = $this->invoices->create(
-                    userId: $service->user_id,
-                    items: [[
+        foreach ($dueServices->groupBy('user_id') as $services) {
+            $generated[] = $this->invoices->create(
+                userId: $services->first()->user_id,
+                items: $services
+                    ->sortBy('next_due_at')
+                    ->map(fn (ClientService $service) => [
                         'title' => sprintf(
                             '%s — %s (due %s)',
                             $service->name,
                             $service->billing_cycle->getLabel(),
                             $service->next_due_at->format('d M Y'),
                         ),
+                        'description' => $service->domain ? 'Domain: '.$service->domain : null,
                         'unit_price' => (float) $service->price,
                         'item_type' => 'client_service',
                         'item_id' => $service->id,
-                    ]],
-                    dueAt: $service->next_due_at,
-                );
-            });
+                    ])
+                    ->values()
+                    ->all(),
+                dueAt: $services->min('next_due_at'),
+            );
+        }
 
         return $generated;
     }

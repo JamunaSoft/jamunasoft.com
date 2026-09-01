@@ -23,7 +23,9 @@ use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -95,62 +97,70 @@ class CustomerResource extends Resource
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            Grid::make(5)->schema([
-                TextEntry::make('invoices_summary')
-                    ->label('Invoices')
-                    ->state(function (User $record): string {
-                        $counts = $record->invoices()
-                            ->selectRaw('status, count(*) as aggregate')
-                            ->groupBy('status')
-                            ->pluck('aggregate', 'status');
+            Section::make()
+                ->schema([
+                    Grid::make(['default' => 2, 'md' => 4])->schema([
+                        TextEntry::make('lifetime_revenue')
+                            ->label('Lifetime revenue')
+                            ->state(fn (User $record) => Payment::where('user_id', $record->id)->sum('amount'))
+                            ->money('BDT')
+                            ->weight(FontWeight::Bold)
+                            ->color('success'),
+                        TextEntry::make('open_balance')
+                            ->label('Open balance')
+                            ->state(fn (User $record) => $record->invoices()->unpaid()->sum('total') - $record->invoices()->unpaid()->sum('amount_paid'))
+                            ->money('BDT')
+                            ->weight(FontWeight::Bold)
+                            ->color(fn ($state) => (float) $state > 0 ? 'danger' : 'gray'),
+                        TextEntry::make('invoices_summary')
+                            ->label('Invoices')
+                            ->badge()
+                            ->color(fn (string $state) => str_contains($state, 'Unpaid') ? 'warning' : 'gray')
+                            ->state(function (User $record): array {
+                                $counts = $record->invoices()
+                                    ->selectRaw('status, count(*) as aggregate')
+                                    ->groupBy('status')
+                                    ->pluck('aggregate', 'status');
 
-                        if ($counts->isEmpty()) {
-                            return '0';
-                        }
+                                return $counts->isEmpty()
+                                    ? ['None']
+                                    : $counts->map(fn ($count, $status) => $count.' '.InvoiceStatus::from($status)->getLabel())->values()->all();
+                            }),
+                        TextEntry::make('support_activity')
+                            ->label('Open tickets · Emails sent')
+                            ->state(fn (User $record) => $record->tickets()->awaitingStaff()->count().' · '.$record->emailLogs()->count()),
+                    ]),
+                ])
+                ->columnSpanFull(),
 
-                        $breakdown = $counts
-                            ->map(fn ($count, $status) => $count.' '.InvoiceStatus::from($status)->getLabel())
-                            ->implode(' · ');
+            Section::make('Client information')
+                ->columns(3)
+                ->schema([
+                    TextEntry::make('name'),
+                    TextEntry::make('company_name')->label('Company')->placeholder('—'),
+                    TextEntry::make('created_at')->label('Client since')->date(),
+                    TextEntry::make('email')->copyable(),
+                    TextEntry::make('secondary_email')->label('Secondary email')->copyable()->placeholder('—'),
+                    TextEntry::make('phone')->placeholder('—'),
+                    TextEntry::make('billing_address')
+                        ->label('Billing address')
+                        ->state(fn (User $record) => collect([
+                            $record->address,
+                            trim(($record->city ?? '').' '.($record->postal_code ?? '')),
+                            $record->country,
+                        ])->filter()->implode(', '))
+                        ->placeholder('—')
+                        ->columnSpanFull(),
+                ])
+                ->columnSpanFull(),
 
-                        return $counts->sum()." ({$breakdown})";
-                    }),
-                TextEntry::make('lifetime_revenue')
-                    ->label('Lifetime revenue')
-                    ->state(fn (User $record) => Payment::where('user_id', $record->id)->sum('amount'))
-                    ->money('BDT')
-                    ->color('success'),
-                TextEntry::make('open_balance')
-                    ->label('Open balance')
-                    ->state(fn (User $record) => $record->invoices()->unpaid()->sum('total') - $record->invoices()->unpaid()->sum('amount_paid'))
-                    ->money('BDT')
-                    ->color('danger'),
-                TextEntry::make('email_activity')
-                    ->label('Emails sent')
-                    ->state(fn (User $record) => $record->emailLogs()->count()),
-                TextEntry::make('support_activity')
-                    ->label('Open tickets')
-                    ->state(fn (User $record) => $record->tickets()->awaitingStaff()->count()),
-            ]),
-            Grid::make(3)->schema([
-                TextEntry::make('name'),
-                TextEntry::make('email')->copyable(),
-                TextEntry::make('secondary_email')->label('Secondary email')->copyable()->placeholder('—'),
-                TextEntry::make('created_at')->label('Client since')->date(),
-                TextEntry::make('company_name')->label('Company')->placeholder('—'),
-                TextEntry::make('phone')->placeholder('—'),
-                TextEntry::make('billing_address')
-                    ->label('Billing address')
-                    ->state(fn (User $record) => collect([
-                        $record->address,
-                        trim(($record->city ?? '').' '.($record->postal_code ?? '')),
-                        $record->country,
-                    ])->filter()->implode(', '))
-                    ->placeholder('—'),
-            ]),
-            TextEntry::make('admin_notes')
-                ->label('Admin notes')
-                ->placeholder('—')
-                ->color('warning')
+            Section::make('Admin notes')
+                ->schema([
+                    TextEntry::make('admin_notes')
+                        ->hiddenLabel()
+                        ->color('warning'),
+                ])
+                ->visible(fn (User $record) => filled($record->admin_notes))
                 ->columnSpanFull(),
         ]);
     }
