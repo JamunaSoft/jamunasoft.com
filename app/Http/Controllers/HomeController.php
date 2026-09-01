@@ -9,6 +9,7 @@ use App\Models\Portfolio;
 use App\Models\Service;
 use App\Models\Solution;
 use App\Models\Testimonial;
+use App\Models\Tld;
 use Illuminate\Contracts\View\View;
 
 class HomeController extends Controller
@@ -59,6 +60,7 @@ class HomeController extends Controller
             'portfolios' => $portfolios,
             'packages' => $packages,
             'clientLogos' => $clientLogos,
+            'searchTlds' => Tld::query()->active()->ordered()->take(6)->get(),
             'testimonials' => $testimonials,
             'posts' => BlogPost::query()->published()->latest('published_at')->with(['media', 'category', 'author'])->take(3)->get(),
             'faqs' => $faqs,

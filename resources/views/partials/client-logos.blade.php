@@ -5,7 +5,7 @@
     .client-marquee__track {
         display: flex;
         width: max-content;
-        animation: client-marquee-scroll 40s linear infinite;
+        animation: client-marquee-scroll linear infinite;
     }
     .client-marquee:hover .client-marquee__track { animation-play-state: paused; }
     @keyframes client-marquee-scroll {
@@ -25,11 +25,21 @@
             centered
         />
     </div>
+    @php
+        // Few logos would leave the strip sparse and the loop distance tiny
+        // (= crawling animation) — repeat the set until the row is full, and
+        // scale the duration to the item count so speed stays constant.
+        $marqueeLogos = $clientLogos;
+        while ($marqueeLogos->count() < 10) {
+            $marqueeLogos = $marqueeLogos->concat($clientLogos);
+        }
+        $marqueeDuration = $marqueeLogos->count() * 3;
+    @endphp
     <div class="client-marquee mt-2">
-        <div class="client-marquee__track">
+        <div class="client-marquee__track" style="animation-duration: {{ $marqueeDuration }}s;">
             @foreach ([false, true] as $isClone)
                 <div class="client-marquee__half {{ $isClone ? 'client-marquee__half--clone' : '' }} flex" @if ($isClone) aria-hidden="true" @endif>
-                    @foreach ($clientLogos as $portfolio)
+                    @foreach ($marqueeLogos as $portfolio)
                         <a
                             href="{{ route('portfolio.show', $portfolio) }}"
                             class="group mx-6 flex w-32 shrink-0 flex-col items-center gap-3 py-2 sm:w-36"

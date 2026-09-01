@@ -218,6 +218,9 @@
         </div>
     </section>
 
+    {{-- Domain search --}}
+    @include('partials.domain-search')
+
     {{-- Client logos --}}
     @if ($clientLogos->isNotEmpty())
         @include('partials.client-logos')
