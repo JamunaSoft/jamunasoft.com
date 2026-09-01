@@ -78,6 +78,8 @@ class InvoiceResource extends Resource
             ]),
             Repeater::make('items')
                 ->relationship()
+                ->orderColumn('sort_order')
+                ->reorderableWithButtons()
                 ->schema([
                     TextInput::make('title')->required()->columnSpan(3),
                     TextInput::make('quantity')->numeric()->default(1)->required(),

@@ -134,6 +134,21 @@ class InvoicePdfTest extends TestCase
         $this->assertNull($item->displayDescription());
     }
 
+    public function test_items_follow_their_sort_order(): void
+    {
+        $invoice = $this->makeInvoice(User::factory()->create());
+        $invoice->items()->update(['sort_order' => 2]);
+        $invoice->items()->create([
+            'title' => 'Should come first',
+            'sort_order' => 1,
+            'quantity' => 1,
+            'unit_price' => 100,
+            'total' => 100,
+        ]);
+
+        $this->assertSame('Should come first', $invoice->refresh()->items->first()->title);
+    }
+
     public function test_taka_in_words_spells_out_amounts(): void
     {
         $this->assertSame('Seven Thousand Eight Hundred Taka Only', taka_in_words(7800.0));
