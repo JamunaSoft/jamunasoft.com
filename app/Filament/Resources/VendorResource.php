@@ -50,6 +50,11 @@ class VendorResource extends Resource
             TextInput::make('name')->required()->unique(ignoreRecord: true),
             TextInput::make('phone'),
             TextInput::make('email')->email(),
+            TextInput::make('opening_balance')
+                ->label('Previous balance (৳)')
+                ->numeric()
+                ->default(0)
+                ->helperText('What you still owed this vendor before tracking started here. Record repayments as expenses with the "Previous due payment" category — the remaining amount updates automatically.'),
             Textarea::make('notes')->rows(2)->columnSpanFull(),
         ]);
     }
@@ -68,6 +73,12 @@ class VendorResource extends Resource
                 TextEntry::make('expenses_total')
                     ->label('Payments made')
                     ->state(fn (Vendor $record) => $record->expenses()->count()),
+                TextEntry::make('previous_balance_remaining')
+                    ->label('Previous balance remaining')
+                    ->state(fn (Vendor $record) => $record->previousBalanceRemaining())
+                    ->money('BDT')
+                    ->color(fn ($state) => (float) $state > 0 ? 'warning' : 'success')
+                    ->visible(fn (Vendor $record) => (float) $record->opening_balance > 0),
             ]),
             TextEntry::make('notes')->placeholder('—')->columnSpanFull(),
         ]);

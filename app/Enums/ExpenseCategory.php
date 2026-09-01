@@ -14,6 +14,7 @@ enum ExpenseCategory: string implements HasLabel
     case Marketing = 'marketing';
     case Software = 'software';
     case Utilities = 'utilities';
+    case PreviousDue = 'previous_due';
     case Other = 'other';
 
     public function getLabel(): string
@@ -27,6 +28,7 @@ enum ExpenseCategory: string implements HasLabel
             self::Marketing => 'Marketing / Boosting',
             self::Software => 'Software subscriptions',
             self::Utilities => 'Utilities',
+            self::PreviousDue => 'Previous due payment',
             self::Other => 'Other',
         };
     }

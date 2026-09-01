@@ -122,6 +122,32 @@ class AccountsAndDigestTest extends TestCase
         $this->assertSame(ExpenseCategory::ServerHosting, $out->category);
     }
 
+    public function test_vendor_previous_balance_tracks_repayments(): void
+    {
+        $vendor = Vendor::create(['name' => 'Shohoz Motion', 'opening_balance' => 5000]);
+
+        $this->assertSame(5000.0, $vendor->previousBalanceRemaining());
+
+        Expense::create([
+            'expensed_at' => now(),
+            'category' => ExpenseCategory::PreviousDue,
+            'description' => 'Old due — part payment',
+            'vendor_id' => $vendor->id,
+            'amount' => 2000,
+        ]);
+
+        // Regular payments do not touch the previous balance.
+        Expense::create([
+            'expensed_at' => now(),
+            'category' => ExpenseCategory::Outsourcing,
+            'description' => 'September videos',
+            'vendor_id' => $vendor->id,
+            'amount' => 8000,
+        ]);
+
+        $this->assertSame(3000.0, $vendor->refresh()->previousBalanceRemaining());
+    }
+
     public function test_expense_totals_feed_the_reports(): void
     {
         Expense::create([
