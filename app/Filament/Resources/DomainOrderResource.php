@@ -8,6 +8,7 @@ use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\DomainOrderResource\Pages\ListDomainOrders;
 use App\Jobs\ProcessDomainOrder;
 use App\Models\DomainOrder;
+use App\Models\User;
 use App\Services\DomainOrderService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -69,7 +70,8 @@ class DomainOrderResource extends Resource
                 Select::make('user_id')
                     ->label('Panel customer')
                     ->relationship('user', 'name')
-                    ->searchable()
+                    ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
+                    ->searchable(['name', 'email', 'company_name'])
                     ->preload()
                     ->placeholder('None yet'),
                 Select::make('years')

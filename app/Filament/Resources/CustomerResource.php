@@ -2,19 +2,23 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\InvoiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Filament\Resources\CustomerResource\Pages\ViewCustomer;
 use App\Filament\Resources\CustomerResource\RelationManagers\DomainOrdersRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\DomainsRelationManager;
+use App\Filament\Resources\CustomerResource\RelationManagers\EmailLogsRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\InvoicesRelationManager;
+use App\Filament\Resources\CustomerResource\RelationManagers\QuotationsRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\ServicesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\TicketsRelationManager;
-use App\Filament\Resources\CustomerResource\RelationManagers\EmailLogsRelationManager;
+use App\Models\Payment;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -60,22 +64,61 @@ class CustomerResource extends Resource
         return $schema->components([
             TextInput::make('name')->required(),
             TextInput::make('email')->email()->required()->unique(ignoreRecord: true),
+            TextInput::make('secondary_email')
+                ->label('Secondary email')
+                ->email()
+                ->helperText('Optional. Invoices, receipts and renewal reminders also go to this address; login stays on the primary email.'),
             TextInput::make('password')
                 ->password()
                 ->revealable()
                 ->dehydrated(fn (?string $state) => filled($state))
                 ->required(fn (string $operation) => $operation === 'create')
                 ->helperText('The client can also set it themselves via "Forgot password" on the client panel.'),
+            Grid::make(2)->schema([
+                TextInput::make('company_name')
+                    ->label('Company / organization')
+                    ->helperText('Shown as the billed-to name on invoice PDFs.'),
+                TextInput::make('phone'),
+                TextInput::make('address')->columnSpan(2),
+                TextInput::make('city'),
+                TextInput::make('postal_code'),
+                TextInput::make('country')->default('Bangladesh'),
+            ])->columnSpanFull(),
+            Textarea::make('admin_notes')
+                ->label('Admin notes')
+                ->rows(3)
+                ->helperText('Staff-only. The client never sees this.')
+                ->columnSpanFull(),
         ]);
     }
 
     public static function infolist(Schema $schema): Schema
     {
         return $schema->components([
-            Grid::make(4)->schema([
-                TextEntry::make('invoices_count')
+            Grid::make(5)->schema([
+                TextEntry::make('invoices_summary')
                     ->label('Invoices')
-                    ->state(fn (User $record) => $record->invoices()->count()),
+                    ->state(function (User $record): string {
+                        $counts = $record->invoices()
+                            ->selectRaw('status, count(*) as aggregate')
+                            ->groupBy('status')
+                            ->pluck('aggregate', 'status');
+
+                        if ($counts->isEmpty()) {
+                            return '0';
+                        }
+
+                        $breakdown = $counts
+                            ->map(fn ($count, $status) => $count.' '.InvoiceStatus::from($status)->getLabel())
+                            ->implode(' · ');
+
+                        return $counts->sum()." ({$breakdown})";
+                    }),
+                TextEntry::make('lifetime_revenue')
+                    ->label('Lifetime revenue')
+                    ->state(fn (User $record) => Payment::where('user_id', $record->id)->sum('amount'))
+                    ->money('BDT')
+                    ->color('success'),
                 TextEntry::make('open_balance')
                     ->label('Open balance')
                     ->state(fn (User $record) => $record->invoices()->unpaid()->sum('total') - $record->invoices()->unpaid()->sum('amount_paid'))
@@ -91,8 +134,24 @@ class CustomerResource extends Resource
             Grid::make(3)->schema([
                 TextEntry::make('name'),
                 TextEntry::make('email')->copyable(),
+                TextEntry::make('secondary_email')->label('Secondary email')->copyable()->placeholder('—'),
                 TextEntry::make('created_at')->label('Client since')->date(),
+                TextEntry::make('company_name')->label('Company')->placeholder('—'),
+                TextEntry::make('phone')->placeholder('—'),
+                TextEntry::make('billing_address')
+                    ->label('Billing address')
+                    ->state(fn (User $record) => collect([
+                        $record->address,
+                        trim(($record->city ?? '').' '.($record->postal_code ?? '')),
+                        $record->country,
+                    ])->filter()->implode(', '))
+                    ->placeholder('—'),
             ]),
+            TextEntry::make('admin_notes')
+                ->label('Admin notes')
+                ->placeholder('—')
+                ->color('warning')
+                ->columnSpanFull(),
         ]);
     }
 
@@ -113,6 +172,7 @@ class CustomerResource extends Resource
                 TextColumn::make('created_at')->label('Since')->date()->sortable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->recordUrl(fn (User $record) => static::getUrl('view', ['record' => $record]))
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
@@ -125,6 +185,7 @@ class CustomerResource extends Resource
             DomainsRelationManager::class,
             ServicesRelationManager::class,
             InvoicesRelationManager::class,
+            QuotationsRelationManager::class,
             DomainOrdersRelationManager::class,
             TicketsRelationManager::class,
             EmailLogsRelationManager::class,

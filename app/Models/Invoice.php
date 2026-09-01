@@ -15,10 +15,17 @@ class Invoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'reference', 'user_id', 'status', 'currency', 'subtotal', 'discount',
+        'reference', 'token', 'user_id', 'status', 'currency', 'subtotal', 'discount',
         'total', 'amount_paid', 'due_at', 'paid_at', 'last_reminded_at',
         'notes', 'meta',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Invoice $invoice) {
+            $invoice->token ??= str()->random(40);
+        });
+    }
 
     protected function casts(): array
     {
@@ -62,6 +69,15 @@ class Invoice extends Model
     public function emailLogs(): MorphMany
     {
         return $this->morphMany(EmailLog::class, 'related');
+    }
+
+    /**
+     * The public "view & pay" page — accessible without login via the
+     * secret token, like quotations.
+     */
+    public function publicUrl(): string
+    {
+        return route('invoice.show', ['reference' => $this->reference, 'token' => $this->token]);
     }
 
     public function balance(): float

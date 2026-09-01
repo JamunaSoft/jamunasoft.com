@@ -6,6 +6,8 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\DomainController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\HostingController;
+use App\Http\Controllers\InvoicePdfController;
+use App\Http\Controllers\InvoiceViewController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\PackageController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\QuotationController;
 use App\Http\Controllers\QuotationViewController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SolutionController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
@@ -39,6 +42,27 @@ Route::post('/domains/order', [DomainController::class, 'order'])
 Route::get('/domains/order/{reference}', [DomainController::class, 'status'])->name('domains.order.status');
 
 Route::get('/packages', PackageController::class)->name('packages.index');
+
+Route::get('/invoices/{invoice}/pdf', InvoicePdfController::class)
+    ->middleware('auth')
+    ->name('invoices.pdf');
+
+// Ends a "Login as client" session started from the admin client profile.
+Route::get('/impersonate/leave', function () {
+    abort_unless(session()->has('impersonator_id'), 403);
+
+    $client = auth()->id();
+    $admin = User::findOrFail(session()->pull('impersonator_id'));
+    abort_unless($admin->roles()->exists(), 403);
+
+    auth()->login($admin);
+    session(['password_hash_web' => $admin->getAuthPassword()]);
+
+    return redirect('/admin/customers/'.$client);
+})->middleware('auth')->name('impersonate.leave');
+
+Route::get('/invoice/{reference}/{token}', [InvoiceViewController::class, 'show'])->name('invoice.show');
+Route::get('/invoice/{reference}/{token}/pdf', [InvoiceViewController::class, 'pdf'])->name('invoice.pdf.public');
 
 Route::get('/about', AboutController::class)->name('about');
 

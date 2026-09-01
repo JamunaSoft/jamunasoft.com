@@ -10,12 +10,12 @@ Dear {{ $invoice->user->name }}, we have received your payment for invoice **{{ 
 | Date | {{ $invoice->paid_at?->format('d M Y') }} |
 
 @foreach ($invoice->items as $item)
-- {{ $item->description }}
+- {{ $item->displayTitle() }}
 @endforeach
 
 Everything on this invoice is now being taken care of automatically.
 
-<x-mail::button :url="url('/client/invoices')">
+<x-mail::button :url="$invoice->publicUrl()">
 View Receipt
 </x-mail::button>
 

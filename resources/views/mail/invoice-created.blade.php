@@ -1,19 +1,24 @@
 <x-mail::message>
 # Invoice {{ $invoice->reference }}
 
-Dear {{ $invoice->user->name }}, a new invoice has been issued to your account.
+Dear {{ $invoice->user->name }}@if (filled($invoice->user->company_name)) ({{ $invoice->user->company_name }})@endif,
+
+This is a notice that an invoice has been generated on {{ $invoice->created_at->format('l, F jS, Y') }}.
+
+**Invoice {{ $invoice->reference }}**<br>
+**Amount Due:** ৳{{ number_format($invoice->balance(), 2) }}<br>
+**Due Date:** {{ $invoice->due_at?->format('l, F jS, Y') ?? '—' }}
+
+## Invoice Items
 
 | Item | Qty | Amount |
 |---|---|---|
 @foreach ($invoice->items as $item)
-| {{ $item->description }} | {{ (float) $item->quantity == 1 ? '1' : rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }} | ৳{{ number_format((float) $item->total, 2) }} |
+| {{ $item->displayTitle() }}@if ($item->displayDescription())<br><small>{{ str_replace(["\r\n", "\r", "\n"], ' · ', $item->displayDescription()) }}</small>@endif | {{ (float) $item->quantity == 1 ? '1' : rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }} | ৳{{ number_format((float) $item->total, 2) }} |
 @endforeach
-@if ((float) $invoice->discount > 0)
-| **Discount** | | −৳{{ number_format((float) $invoice->discount, 2) }} |
-@endif
+| **Sub Total** | | ৳{{ number_format((float) $invoice->subtotal, 2) }} |
+| **Discount** | | @if ((float) $invoice->discount > 0)−@endif৳{{ number_format((float) $invoice->discount, 2) }} |
 | **Total** | | **৳{{ number_format((float) $invoice->total, 2) }}** |
-
-**Due date:** {{ $invoice->due_at?->format('d M Y') ?? '—' }}
 
 @if (settings('domain_payment_instructions'))
 ## How to pay
@@ -23,12 +28,12 @@ Dear {{ $invoice->user->name }}, a new invoice has been issued to your account.
 Please mention the invoice number **{{ $invoice->reference }}** with the payment.
 @endif
 
-You can view your invoices any time in our client area.
+A PDF copy of this invoice is attached. You can view and pay the invoice online any time using the button below.
 
-<x-mail::button :url="url('/client/invoices')">
-View Invoice
+<x-mail::button :url="$invoice->publicUrl()">
+View &amp; Pay Invoice
 </x-mail::button>
 
-Thanks,<br>
+Regards,<br>
 {{ settings('company_name', config('app.name')) }}
 </x-mail::message>

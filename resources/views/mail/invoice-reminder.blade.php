@@ -12,7 +12,7 @@ This is a friendly reminder that invoice **{{ $invoice->reference }}** is due on
 **Amount due:** ৳{{ number_format($invoice->balance(), 2) }}
 
 @foreach ($invoice->items as $item)
-- {{ $item->description }}
+- {{ $item->displayTitle() }}
 @endforeach
 
 @if (settings('domain_payment_instructions'))
@@ -25,8 +25,8 @@ Please mention the invoice number **{{ $invoice->reference }}** with the payment
 
 Already paid? Then please ignore this email — it can take us a little while to confirm a payment.
 
-<x-mail::button :url="url('/client/invoices')">
-View Invoice
+<x-mail::button :url="$invoice->publicUrl()">
+View &amp; Pay Invoice
 </x-mail::button>
 
 Thanks,<br>

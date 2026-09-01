@@ -6,6 +6,7 @@ use App\Services\Registrars\RegistrarManager;
 use App\Support\Settings;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -133,6 +134,38 @@ class WebsiteSettings extends Page
                         TextInput::make('domain_registrant_city')->label('Registrant city'),
                         TextInput::make('domain_registrant_postal')->label('Registrant postal code'),
                         TextInput::make('domain_registrant_country')->label('Registrant country (ISO code)')->placeholder('BD')->maxLength(2),
+                    ]),
+
+                    Tab::make('Billing')->schema([
+                        TextInput::make('invoice_tagline')
+                            ->label('Invoice tagline')
+                            ->placeholder('Your Gateway to Innovation, Powered by AARISH ENTERPRISE')
+                            ->helperText('Shown under the logo on invoice PDFs.'),
+                        Repeater::make('invoice_banks')
+                            ->label('Bank accounts')
+                            ->helperText('Shown side by side in the payment section of invoice PDFs.')
+                            ->schema([
+                                TextInput::make('account_name')->label('Account name')->placeholder('AARISH ENTERPRISE'),
+                                TextInput::make('account_number')->label('Account number'),
+                                TextInput::make('bank_name')->label('Bank')->placeholder('Dutch-Bangla Bank Ltd'),
+                                TextInput::make('branch')->placeholder('Shewrapara Branch'),
+                                TextInput::make('routing_number')->label('Routing number'),
+                            ])
+                            ->columns(2)
+                            ->defaultItems(0)
+                            ->maxItems(3)
+                            ->addActionLabel('Add bank account'),
+                        TextInput::make('invoice_bkash')->label('bKash number'),
+                        TextInput::make('invoice_nagad')->label('Nagad number'),
+                        TextInput::make('invoice_rocket')->label('Rocket number'),
+                        TextInput::make('invoice_price_note')
+                            ->label('Price note')
+                            ->placeholder('* All prices are excluding of VAT & AIT')
+                            ->helperText('Small print under the invoice totals. Leave blank to use the default.'),
+                        Textarea::make('invoice_note')
+                            ->label('Invoice note (NB)')
+                            ->rows(2)
+                            ->helperText('Highlighted note on invoice PDFs, e.g. the hosting-expiry warning. Leave blank to use the default.'),
                     ]),
                 ])->persistTab(),
             ]);

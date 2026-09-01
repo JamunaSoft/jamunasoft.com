@@ -23,6 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(prepend: [
             ServeParkedDomainPage::class,
         ]);
+
+        // There is no root login route — Filament owns auth. Guests hitting
+        // an auth-only web route (e.g. invoice PDFs) go to the client login.
+        $middleware->redirectGuestsTo(fn () => '/client/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

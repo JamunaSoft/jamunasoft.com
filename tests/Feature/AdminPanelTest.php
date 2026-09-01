@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Enums\InvoiceStatus;
+use App\Models\Invoice;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -60,6 +62,41 @@ class AdminPanelTest extends TestCase
         foreach ($urls as $url) {
             $this->actingAs($admin)->get($url)->assertOk();
         }
+    }
+
+    public function test_client_view_page_renders_with_all_relation_tabs(): void
+    {
+        $admin = $this->superAdmin();
+        $client = User::factory()->create();
+
+        $this->actingAs($admin)
+            ->get("/admin/customers/{$client->id}")
+            ->assertOk();
+    }
+
+    public function test_invoice_create_and_edit_pages_render(): void
+    {
+        $admin = $this->superAdmin();
+        $client = User::factory()->create();
+
+        $open = Invoice::create([
+            'reference' => Invoice::generateReference(),
+            'user_id' => $client->id,
+            'status' => InvoiceStatus::Unpaid,
+            'due_at' => now()->addWeek(),
+        ]);
+
+        $paid = Invoice::create([
+            'reference' => Invoice::generateReference(),
+            'user_id' => $client->id,
+            'status' => InvoiceStatus::Paid,
+            'due_at' => now()->addWeek(),
+        ]);
+
+        $this->actingAs($admin)->get('/admin/invoices/create')->assertOk();
+        $this->actingAs($admin)->get("/admin/invoices/{$open->id}/edit")->assertOk();
+        // Paid invoices are locked — the edit page refuses them.
+        $this->actingAs($admin)->get("/admin/invoices/{$paid->id}/edit")->assertForbidden();
     }
 
     public function test_content_manager_cannot_manage_leads_but_sales_can(): void

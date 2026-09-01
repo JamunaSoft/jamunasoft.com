@@ -7,6 +7,7 @@ use App\Enums\ClientServiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\ClientServiceResource\Pages\ListClientServices;
 use App\Models\ClientService;
+use App\Models\User;
 use App\Services\InvoiceService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -51,7 +52,8 @@ class ClientServiceResource extends Resource
                 Select::make('user_id')
                     ->label('Client')
                     ->relationship('user', 'name', fn (Builder $query) => $query->whereDoesntHave('roles'))
-                    ->searchable()
+                    ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
+                    ->searchable(['name', 'email', 'company_name'])
                     ->preload()
                     ->required(),
                 Select::make('hosting_plan_id')
@@ -118,7 +120,7 @@ class ClientServiceResource extends Resource
                         $invoice = app(InvoiceService::class)->create(
                             userId: $record->user_id,
                             items: [[
-                                'description' => sprintf(
+                                'title' => sprintf(
                                     '%s — %s (due %s)',
                                     $record->name,
                                     $record->billing_cycle->getLabel(),

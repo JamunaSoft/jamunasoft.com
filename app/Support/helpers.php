@@ -33,6 +33,31 @@ if (! function_exists('default_nameservers')) {
     }
 }
 
+if (! function_exists('taka_in_words')) {
+    /**
+     * Spell out a BDT amount for invoices, e.g. 7800.50 =>
+     * "Seven Thousand Eight Hundred Taka and Fifty Paisa Only".
+     */
+    function taka_in_words(float $amount): string
+    {
+        $taka = (int) floor($amount);
+        $paisa = (int) round(($amount - $taka) * 100);
+
+        if (! class_exists(NumberFormatter::class)) {
+            return number_format($amount, 2).' BDT';
+        }
+
+        $formatter = new NumberFormatter('en', NumberFormatter::SPELLOUT);
+        $words = ucwords(str_replace('-', ' ', $formatter->format($taka))).' Taka';
+
+        if ($paisa > 0) {
+            $words .= ' and '.ucwords(str_replace('-', ' ', $formatter->format($paisa))).' Paisa';
+        }
+
+        return $words.' Only';
+    }
+}
+
 if (! function_exists('settings_t')) {
     /**
      * Get a translatable setting: when the active locale is not the fallback,

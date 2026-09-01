@@ -43,7 +43,7 @@ class SendDomainRenewalReminders extends Command
                 }
 
                 $recipients = $domain->user
-                    ? [$domain->user->email]
+                    ? $domain->user->billingEmails()
                     : $orders->notificationRecipients();
 
                 foreach ($recipients as $recipient) {

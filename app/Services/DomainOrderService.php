@@ -75,7 +75,7 @@ class DomainOrderService
             app(InvoiceService::class)->create(
                 userId: $order->user_id,
                 items: [[
-                    'description' => sprintf(
+                    'title' => sprintf(
                         'Domain %s — %s (%d %s)',
                         strtolower($order->type->getLabel()),
                         $order->domain_name,

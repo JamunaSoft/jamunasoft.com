@@ -111,6 +111,22 @@ class BillingTest extends TestCase
         Mail::assertQueued(InvoicePaid::class);
     }
 
+    public function test_invoice_emails_also_go_to_the_secondary_email(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $user->update(['secondary_email' => 'accounts@client-company.com']);
+
+        app(InvoiceService::class)->create(
+            userId: $user->id,
+            items: [['description' => 'Hosting', 'unit_price' => 5000]],
+        );
+
+        Mail::assertQueued(InvoiceCreated::class, fn ($mail) => $mail->hasTo($user->email)
+            && $mail->hasTo('accounts@client-company.com'));
+    }
+
     public function test_partial_payment_keeps_invoice_unpaid(): void
     {
         Mail::fake();

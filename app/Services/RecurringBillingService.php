@@ -3,11 +3,9 @@
 namespace App\Services;
 
 use App\Enums\InvoiceStatus;
-use App\Mail\InvoiceReminder;
 use App\Models\ClientService;
 use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class RecurringBillingService
 {
@@ -42,7 +40,7 @@ class RecurringBillingService
                 $generated[] = $this->invoices->create(
                     userId: $service->user_id,
                     items: [[
-                        'description' => sprintf(
+                        'title' => sprintf(
                             '%s — %s (due %s)',
                             $service->name,
                             $service->billing_cycle->getLabel(),
@@ -78,18 +76,13 @@ class RecurringBillingService
             ->with('user')
             ->each(function (Invoice $invoice) use (&$sent) {
                 try {
-                    $mail = new InvoiceReminder($invoice);
-                    Mail::to($invoice->user->email)
-                        ->bcc(config('mail.billing_bcc'))
-                        ->queue($mail);
-                    $this->invoices->logEmail($invoice, 'invoice_reminder', $mail->envelope()->subject, $invoice->user->email);
+                    $this->invoices->sendReminder($invoice);
                 } catch (\Throwable $e) {
                     Log::warning('Invoice reminder failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
 
                     return;
                 }
 
-                $invoice->update(['last_reminded_at' => now()]);
                 $sent++;
             });
 

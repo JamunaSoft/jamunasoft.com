@@ -90,7 +90,7 @@ class QuotationService
         $invoice = $this->invoices->create(
             userId: $user->id,
             items: $quotation->items->map(fn ($item) => [
-                'description' => $item->description,
+                'title' => $item->description,
                 'quantity' => (float) $item->quantity,
                 'unit_price' => (float) $item->unit_price,
             ])->all(),

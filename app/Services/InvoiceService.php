@@ -7,11 +7,14 @@ use App\Enums\DomainOrderStatus;
 use App\Enums\InvoiceStatus;
 use App\Mail\InvoiceCreated;
 use App\Mail\InvoicePaid;
+use App\Mail\InvoiceReminder;
 use App\Models\ClientService;
-use App\Models\EmailLog;
 use App\Models\DomainOrder;
+use App\Models\EmailLog;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\Payment;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -19,9 +22,10 @@ use Illuminate\Support\Facades\Mail;
 class InvoiceService
 {
     /**
-     * Create an invoice with line items.
+     * Create an invoice with line items. Each item has a title (the bold
+     * line on the invoice) and an optional multiline description.
      *
-     * @param  array<int, array{description: string, quantity?: float, unit_price: float, item_type?: ?string, item_id?: ?int}>  $items
+     * @param  array<int, array{title?: string, description?: ?string, quantity?: float, unit_price: float, item_type?: ?string, item_id?: ?int}>  $items
      */
     public function create(
         int $userId,
@@ -43,7 +47,8 @@ class InvoiceService
                 $quantity = (float) ($item['quantity'] ?? 1);
 
                 $invoice->items()->create([
-                    'description' => $item['description'],
+                    'title' => $item['title'] ?? null,
+                    'description' => $item['description'] ?? null,
                     'quantity' => $quantity,
                     'unit_price' => $item['unit_price'],
                     'total' => round($quantity * (float) $item['unit_price'], 2),
@@ -91,10 +96,11 @@ class InvoiceService
     {
         try {
             $mail = new InvoiceCreated($invoice);
-            Mail::to($invoice->user->email)
+            $recipients = $invoice->user->billingEmails();
+            Mail::to($recipients)
                 ->bcc(config('mail.billing_bcc'))
                 ->queue($mail);
-            $this->logEmail($invoice, 'invoice_created', $mail->envelope()->subject, $invoice->user->email);
+            $this->logEmail($invoice, 'invoice_created', $mail->envelope()->subject, implode(', ', $recipients));
         } catch (\Throwable $e) {
             Log::warning('Invoice email failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
         }
@@ -133,16 +139,130 @@ class InvoiceService
 
             try {
                 $mail = new InvoicePaid($invoice);
-                Mail::to($invoice->user->email)
+                $recipients = $invoice->user->billingEmails();
+                Mail::to($recipients)
                     ->bcc(config('mail.billing_bcc'))
                     ->queue($mail);
-                $this->logEmail($invoice, 'invoice_paid', $mail->envelope()->subject, $invoice->user->email);
+                $this->logEmail($invoice, 'invoice_paid', $mail->envelope()->subject, implode(', ', $recipients));
             } catch (\Throwable $e) {
                 Log::warning('Invoice receipt email failed: '.$e->getMessage(), ['invoice' => $invoice->reference]);
             }
         }
 
         return $payment;
+    }
+
+    /**
+     * Queue a payment-reminder email (both billing inboxes, BCC office) and
+     * stamp last_reminded_at. Throws on failure so callers can react.
+     */
+    public function sendReminder(Invoice $invoice): void
+    {
+        $mail = new InvoiceReminder($invoice);
+        $recipients = $invoice->user->billingEmails();
+
+        Mail::to($recipients)
+            ->bcc(config('mail.billing_bcc'))
+            ->queue($mail);
+
+        $this->logEmail($invoice, 'invoice_reminder', $mail->envelope()->subject, implode(', ', $recipients));
+        $invoice->update(['last_reminded_at' => now()]);
+    }
+
+    /**
+     * Copy an invoice into a fresh unpaid one — same items (including their
+     * service/domain links), discount and notes. Not emailed automatically.
+     */
+    public function duplicate(Invoice $invoice): Invoice
+    {
+        $copy = $this->create(
+            userId: $invoice->user_id,
+            items: $invoice->items->map(fn (InvoiceItem $item) => [
+                'title' => $item->title,
+                'description' => $item->description,
+                'quantity' => (float) $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'item_type' => $item->item_type,
+                'item_id' => $item->item_id,
+            ])->all(),
+            notes: $invoice->notes,
+            sendEmail: false,
+        );
+
+        if ((float) $invoice->discount > 0) {
+            $copy->update(['discount' => $invoice->discount]);
+            $copy = $this->recalculateTotals($copy);
+        }
+
+        return $copy;
+    }
+
+    /**
+     * WHMCS-style merge: combine several unpaid invoices of one client into
+     * the oldest one. Items and payments move to the merged invoice, the
+     * emptied invoices are cancelled with an audit note, and no email is
+     * sent — the admin reviews the result and emails it manually.
+     *
+     * @param  Collection<int, Invoice>  $invoices
+     */
+    public function merge(Collection $invoices): Invoice
+    {
+        if ($invoices->count() < 2) {
+            throw new \InvalidArgumentException('Select at least two invoices to merge.');
+        }
+
+        if ($invoices->pluck('user_id')->unique()->count() > 1) {
+            throw new \InvalidArgumentException('Only invoices of the same client can be merged.');
+        }
+
+        if ($invoices->contains(fn (Invoice $invoice) => $invoice->status !== InvoiceStatus::Unpaid)) {
+            throw new \InvalidArgumentException('Only unpaid invoices can be merged.');
+        }
+
+        return DB::transaction(function () use ($invoices): Invoice {
+            $sorted = $invoices->sortBy([['created_at', 'asc'], ['id', 'asc']])->values();
+
+            /** @var Invoice $target */
+            $target = $sorted->first();
+            $sources = $sorted->slice(1);
+
+            $combinedDiscount = round($sorted->sum(fn (Invoice $invoice) => (float) $invoice->discount), 2);
+            $combinedPaid = round($sorted->sum(fn (Invoice $invoice) => (float) $invoice->amount_paid), 2);
+            $earliestDue = $sorted->pluck('due_at')->filter()->min();
+            $mergedReferences = $sources->pluck('reference')->implode(', ');
+
+            foreach ($sources as $source) {
+                $source->items()->update(['invoice_id' => $target->id]);
+                $source->payments()->update(['invoice_id' => $target->id]);
+
+                $originalTotal = number_format((float) $source->total, 2);
+                $source->update([
+                    'status' => InvoiceStatus::Cancelled,
+                    'subtotal' => 0,
+                    'discount' => 0,
+                    'total' => 0,
+                    'amount_paid' => 0,
+                    'notes' => trim(($source->notes ? $source->notes."\n" : '')
+                        ."Merged into {$target->reference} on ".now()->format('d M Y')." (original total ৳{$originalTotal})."),
+                ]);
+            }
+
+            $target->update([
+                'discount' => $combinedDiscount,
+                'amount_paid' => $combinedPaid,
+                'due_at' => $earliestDue,
+                'notes' => trim(($target->notes ? $target->notes."\n" : '')."Merged with: {$mergedReferences}."),
+            ]);
+
+            $target = $this->recalculateTotals($target);
+
+            // Carried-over partial payments can cover the combined total.
+            if ($target->balance() <= 0) {
+                $target->update(['status' => InvoiceStatus::Paid, 'paid_at' => now()]);
+            }
+
+            return $target->refresh();
+        });
     }
 
     public function logEmail(Invoice $invoice, string $type, string $subject, string $recipient): void

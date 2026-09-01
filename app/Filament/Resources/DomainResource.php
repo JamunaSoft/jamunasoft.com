@@ -7,6 +7,7 @@ use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\DomainResource\Pages\ListDomains;
 use App\Models\Domain;
 use App\Models\Tld;
+use App\Models\User;
 use App\Services\DomainOrderService;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
@@ -66,7 +67,8 @@ class DomainResource extends Resource
             Select::make('user_id')
                 ->label('Customer')
                 ->relationship('user', 'name')
-                ->searchable()
+                ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
+                ->searchable(['name', 'email', 'company_name'])
                 ->preload()
                 ->placeholder('Unassigned (company-owned)')
                 ->helperText('Panel customer who owns this domain. Registrar-side data is managed via Spaceship sync.'),

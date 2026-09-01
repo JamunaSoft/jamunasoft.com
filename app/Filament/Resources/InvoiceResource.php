@@ -4,11 +4,17 @@ namespace App\Filament\Resources;
 
 use App\Enums\InvoiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
+use App\Filament\Resources\InvoiceResource\Pages\CreateInvoice;
+use App\Filament\Resources\InvoiceResource\Pages\EditInvoice;
 use App\Filament\Resources\InvoiceResource\Pages\ListInvoices;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\User;
 use App\Services\InvoiceService;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
@@ -28,6 +34,8 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
 class InvoiceResource extends Resource
@@ -63,7 +71,8 @@ class InvoiceResource extends Resource
                 Select::make('user_id')
                     ->label('Client')
                     ->relationship('user', 'name', fn (Builder $query) => $query->whereDoesntHave('roles'))
-                    ->searchable()
+                    ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
+                    ->searchable(['name', 'email', 'company_name'])
                     ->preload()
                     ->required(),
                 DatePicker::make('due_at')
@@ -74,13 +83,18 @@ class InvoiceResource extends Resource
             Repeater::make('items')
                 ->relationship()
                 ->schema([
-                    TextInput::make('description')->required()->columnSpan(2),
+                    TextInput::make('title')->required()->columnSpan(3),
                     TextInput::make('quantity')->numeric()->default(1)->required(),
-                    TextInput::make('unit_price')->numeric()->prefix('৳')->required(),
+                    TextInput::make('unit_price')->numeric()->prefix('৳')->required()->columnSpan(2),
+                    Textarea::make('description')
+                        ->rows(2)
+                        ->placeholder('Optional — details shown under the title on the invoice, e.g. specs, domain, duration')
+                        ->columnSpanFull(),
                 ])
-                ->columns(4)
+                ->columns(6)
                 ->minItems(1)
-                ->required(),
+                ->required()
+                ->columnSpanFull(),
             Grid::make(2)->schema([
                 TextInput::make('discount')->numeric()->prefix('৳')->default(0),
                 Textarea::make('notes')->rows(2),
@@ -101,9 +115,16 @@ class InvoiceResource extends Resource
             ]),
             RepeatableEntry::make('items')
                 ->schema([
-                    TextEntry::make('description')->columnSpan(2),
+                    TextEntry::make('title')
+                        ->state(fn (InvoiceItem $record) => $record->displayTitle())
+                        ->columnSpan(2),
                     TextEntry::make('quantity'),
                     TextEntry::make('total')->money('BDT'),
+                    TextEntry::make('description')
+                        ->state(fn (InvoiceItem $record) => $record->displayDescription())
+                        ->color('gray')
+                        ->visible(fn (InvoiceItem $record) => filled($record->displayDescription()))
+                        ->columnSpanFull(),
                 ])
                 ->columns(4)
                 ->columnSpanFull(),
@@ -149,6 +170,11 @@ class InvoiceResource extends Resource
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('pdf')
+                    ->label('PDF')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->color('gray')
+                    ->url(fn (Invoice $record) => route('invoices.pdf', ['invoice' => $record, 'download' => 1])),
                 Action::make('recordPayment')
                     ->label('Record payment')
                     ->icon(Heroicon::OutlinedBanknotes)
@@ -188,9 +214,7 @@ class InvoiceResource extends Resource
                             ->success()
                             ->send();
                     }),
-                EditAction::make()
-                    ->visible(fn (Invoice $record) => $record->status->isOpen())
-                    ->after(fn (Invoice $record) => app(InvoiceService::class)->recalculateTotals($record)),
+                EditAction::make(),
                 Action::make('send')
                     ->label('Email to client')
                     ->icon(Heroicon::OutlinedEnvelope)
@@ -201,6 +225,40 @@ class InvoiceResource extends Resource
                         app(InvoiceService::class)->sendInvoice($record);
 
                         Notification::make()->title('Invoice emailed to '.$record->user->email)->success()->send();
+                    }),
+                Action::make('remind')
+                    ->label('Send reminder')
+                    ->icon(Heroicon::OutlinedBellAlert)
+                    ->color('warning')
+                    ->visible(fn (Invoice $record) => $record->status === InvoiceStatus::Unpaid)
+                    ->requiresConfirmation()
+                    ->modalDescription(fn (Invoice $record) => $record->last_reminded_at
+                        ? 'Last reminder was sent '.$record->last_reminded_at->diffForHumans().'. Send another one now?'
+                        : 'No reminder has been sent for this invoice yet. Send one now?')
+                    ->action(function (Invoice $record) {
+                        app(InvoiceService::class)->sendReminder($record);
+
+                        Notification::make()
+                            ->title('Reminder emailed to '.implode(', ', $record->user->billingEmails()))
+                            ->success()
+                            ->send();
+                    }),
+                Action::make('duplicate')
+                    ->label('Duplicate')
+                    ->icon(Heroicon::OutlinedDocumentDuplicate)
+                    ->color('gray')
+                    ->requiresConfirmation()
+                    ->modalDescription('Copy this invoice into a fresh unpaid one with the same items. It is not emailed — you can review and edit it first.')
+                    ->action(function (Invoice $record) {
+                        $copy = app(InvoiceService::class)->duplicate($record);
+
+                        Notification::make()
+                            ->title("Invoice {$copy->reference} created")
+                            ->body('Review it, then use "Email to client" to send it.')
+                            ->success()
+                            ->send();
+
+                        return redirect(static::getUrl('edit', ['record' => $copy]));
                     }),
                 Action::make('cancel')
                     ->label('Cancel')
@@ -213,13 +271,48 @@ class InvoiceResource extends Resource
 
                         Notification::make()->title('Invoice cancelled')->success()->send();
                     }),
+            ])
+            ->toolbarActions([
+                BulkActionGroup::make([
+                    BulkAction::make('merge')
+                        ->label('Merge invoices')
+                        ->icon(Heroicon::OutlinedArrowsPointingIn)
+                        ->requiresConfirmation()
+                        ->modalHeading('Merge invoices')
+                        ->modalDescription('All items and payments of the selected unpaid invoices move into the oldest one; the emptied invoices are cancelled. No email is sent — review the merged invoice, then use "Email to client".')
+                        ->deselectRecordsAfterCompletion()
+                        ->action(function (Collection $records) {
+                            try {
+                                $target = app(InvoiceService::class)->merge($records);
+
+                                Notification::make()
+                                    ->title("Merged into {$target->reference}")
+                                    ->body('Review it, then use "Email to client" to send it.')
+                                    ->success()
+                                    ->send();
+                            } catch (\InvalidArgumentException $e) {
+                                Notification::make()->title($e->getMessage())->danger()->send();
+                            }
+                        }),
+                ]),
             ]);
+    }
+
+    /**
+     * WHMCS-style: invoices are edited on a full page, and only while open.
+     */
+    public static function canEdit(Model $record): bool
+    {
+        /** @var Invoice $record */
+        return static::userCan('manage') && $record->status->isOpen();
     }
 
     public static function getPages(): array
     {
         return [
             'index' => ListInvoices::route('/'),
+            'create' => CreateInvoice::route('/create'),
+            'edit' => EditInvoice::route('/{record}/edit'),
         ];
     }
 }

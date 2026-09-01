@@ -15,7 +15,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'secondary_email', 'password', 'company_name', 'phone', 'address', 'city', 'postal_code', 'country', 'admin_notes'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
@@ -47,6 +47,31 @@ class User extends Authenticatable implements FilamentUser
         $this->notify($notification);
     }
 
+    /**
+     * Label for client dropdowns: the name with the company appended,
+     * e.g. "Parveen Akter — Caring Hands BD".
+     */
+    public function selectLabel(): string
+    {
+        return filled($this->company_name)
+            ? "{$this->name} — {$this->company_name}"
+            : $this->name;
+    }
+
+    /**
+     * All inboxes that should receive billing/service emails: the login
+     * email plus the optional secondary (billing contact) email.
+     *
+     * @return array<int, string>
+     */
+    public function billingEmails(): array
+    {
+        return array_values(array_unique(array_filter([
+            $this->email,
+            $this->secondary_email,
+        ])));
+    }
+
     public function domains(): HasMany
     {
         return $this->hasMany(Domain::class);
@@ -70,6 +95,11 @@ class User extends Authenticatable implements FilamentUser
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function quotations(): HasMany
+    {
+        return $this->hasMany(Quotation::class);
     }
 
     public function emailLogs(): HasMany

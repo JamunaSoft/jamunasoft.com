@@ -5,7 +5,9 @@ namespace App\Filament\Client\Resources;
 use App\Enums\InvoiceStatus;
 use App\Filament\Client\Resources\InvoiceResource\Pages\ListInvoices;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -64,9 +66,16 @@ class InvoiceResource extends Resource
             ]),
             RepeatableEntry::make('items')
                 ->schema([
-                    TextEntry::make('description')->columnSpan(2),
+                    TextEntry::make('title')
+                        ->state(fn (InvoiceItem $record) => $record->displayTitle())
+                        ->columnSpan(2),
                     TextEntry::make('quantity'),
                     TextEntry::make('total')->money('BDT'),
+                    TextEntry::make('description')
+                        ->state(fn (InvoiceItem $record) => $record->displayDescription())
+                        ->color('gray')
+                        ->visible(fn (InvoiceItem $record) => filled($record->displayDescription()))
+                        ->columnSpanFull(),
                 ])
                 ->columns(4)
                 ->columnSpanFull(),
@@ -103,6 +112,11 @@ class InvoiceResource extends Resource
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 ViewAction::make(),
+                Action::make('pdf')
+                    ->label('Download PDF')
+                    ->icon(Heroicon::OutlinedArrowDownTray)
+                    ->color('gray')
+                    ->url(fn (Invoice $record) => route('invoices.pdf', ['invoice' => $record, 'download' => 1])),
             ])
             ->emptyStateHeading('No invoices yet');
     }
