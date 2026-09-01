@@ -86,12 +86,7 @@ class RecurringBillingService
         return $services
             ->sortBy('next_due_at')
             ->map(fn (ClientService $service) => [
-                'title' => sprintf(
-                    '%s — %s (due %s)',
-                    $service->name,
-                    $service->billing_cycle->getLabel(),
-                    $service->next_due_at->format('d M Y'),
-                ),
+                'title' => sprintf('%s — %s', $service->name, $service->billing_cycle->getLabel()),
                 'description' => $service->domain ? 'Domain: '.$service->domain : null,
                 'unit_price' => (float) $service->price,
                 'item_type' => 'client_service',

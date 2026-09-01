@@ -266,9 +266,10 @@ $client = $invoice->user;
             @endphp
             <tr @class(['alt' => $i % 2 === 1])>
                 <td>
-                    <div class="item-title">
-                        {{ $item->displayTitle() }}@if ((float) $item->quantity !== 1.0) &times; {{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}@endif
-                    </div>
+                    <div class="item-title">{{ $item->displayTitle() }}</div>
+                    @if ((float) $item->quantity !== 1.0)
+                        <div class="item-detail">{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }} &times; {{ number_format((float) $item->unit_price, 2) }} BDT</div>
+                    @endif
                     @foreach ($detailLines as $line)
                         @if (trim($line) !== '')<div class="item-detail">{{ $line }}</div>@endif
                     @endforeach

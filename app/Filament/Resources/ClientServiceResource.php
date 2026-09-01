@@ -120,12 +120,7 @@ class ClientServiceResource extends Resource
                         $invoice = app(InvoiceService::class)->create(
                             userId: $record->user_id,
                             items: [[
-                                'title' => sprintf(
-                                    '%s — %s (due %s)',
-                                    $record->name,
-                                    $record->billing_cycle->getLabel(),
-                                    $record->next_due_at?->format('d M Y') ?? 'now',
-                                ),
+                                'title' => sprintf('%s — %s', $record->name, $record->billing_cycle->getLabel()),
                                 'unit_price' => (float) $record->price,
                                 'item_type' => 'client_service',
                                 'item_id' => $record->id,
