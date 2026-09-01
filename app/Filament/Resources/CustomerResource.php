@@ -209,13 +209,16 @@ class CustomerResource extends Resource
         $url = Filament::getPanel('client')->getResetPasswordUrl($token, $user);
 
         $mail = new ClientWelcome($user, $url);
-        Mail::to($user->email)->queue($mail);
+        Mail::to($user->email)
+            ->bcc(config('mail.billing_bcc'))
+            ->queue($mail);
 
         EmailLog::create([
             'user_id' => $user->id,
             'type' => 'client_welcome',
             'subject' => $mail->envelope()->subject,
             'recipient' => $user->email,
+            'bcc' => config('mail.billing_bcc'),
             'status' => 'queued',
             'queued_at' => now(),
         ]);
