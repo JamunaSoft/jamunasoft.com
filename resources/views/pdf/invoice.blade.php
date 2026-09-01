@@ -122,7 +122,7 @@ $client = $invoice->user;
     table.items td { padding: 7px 11px; border-bottom: 1px solid #DCE6ED; }
     table.items tr.alt td { background: #F1F7FB; }
     .item-title { font-weight: bold; }
-    .item-detail { color: #5D6E7E; font-size: 10px; margin-top: 1px; }
+    .item-detail { color: #5D6E7E; font-size: 10px; line-height: 1.2; margin-top: 0; }
 
     table.totals { width: 100%; border-collapse: collapse; }
     table.totals td { padding: 4px 11px; }

@@ -71,7 +71,7 @@
                                     <td class="py-3 pr-4 text-navy-900">
                                         {{ $item->displayTitle() }}
                                         @if ($item->displayDescription())
-                                            <p class="mt-1 text-xs text-slate-500 whitespace-pre-line">{{ $item->displayDescription() }}</p>
+                                            <p class="mt-1 text-xs leading-tight text-slate-500 whitespace-pre-line">{{ $item->displayDescription() }}</p>
                                         @endif
                                     </td>
                                     <td class="py-3 pr-4 text-right text-slate-600">{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td>
