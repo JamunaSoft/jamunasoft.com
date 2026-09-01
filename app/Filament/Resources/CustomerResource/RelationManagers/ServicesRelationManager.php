@@ -4,15 +4,20 @@ namespace App\Filament\Resources\CustomerResource\RelationManagers;
 
 use App\Enums\BillingCycle;
 use App\Enums\ClientServiceStatus;
+use App\Models\User;
+use App\Services\RecurringBillingService;
+use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -76,6 +81,34 @@ class ServicesRelationManager extends RelationManager
             ])
             ->paginated(false)
             ->headerActions([
+                Action::make('invoiceAll')
+                    ->label('Invoice all services')
+                    ->icon(Heroicon::OutlinedDocumentPlus)
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalDescription('Create ONE consolidated invoice covering every active service that is not already on an open invoice. It is not emailed automatically — review it on the Invoices tab, then use "Email to client".')
+                    ->action(function () {
+                        /** @var User $client */
+                        $client = $this->getOwnerRecord();
+
+                        $invoice = app(RecurringBillingService::class)->invoiceAllServicesFor($client);
+
+                        if ($invoice === null) {
+                            Notification::make()
+                                ->title('Nothing to invoice')
+                                ->body('Every active service is already covered by an open invoice.')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        Notification::make()
+                            ->title("Invoice {$invoice->reference} created — ৳".number_format((float) $invoice->total, 2))
+                            ->body('Review it on the Invoices tab, then use "Email to client" to send it.')
+                            ->success()
+                            ->send();
+                    }),
                 CreateAction::make()->label('New service'),
             ])
             ->recordActions([

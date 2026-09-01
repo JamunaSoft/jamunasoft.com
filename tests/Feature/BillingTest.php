@@ -274,6 +274,37 @@ class BillingTest extends TestCase
         }
     }
 
+    public function test_invoice_all_services_bills_everything_now_without_emailing(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+
+        foreach ([['Maintenance', 2500], ['Hosting', 3500]] as [$name, $price]) {
+            ClientService::create([
+                'user_id' => $user->id,
+                'name' => $name,
+                'billing_cycle' => BillingCycle::Monthly,
+                'price' => $price,
+                'status' => ClientServiceStatus::Active,
+                // Far outside the 7-day auto window — "bill now" ignores it.
+                'next_due_at' => now()->addDays(30),
+            ]);
+        }
+
+        $invoice = app(RecurringBillingService::class)->invoiceAllServicesFor($user);
+
+        $this->assertNotNull($invoice);
+        $this->assertCount(2, $invoice->items);
+        $this->assertSame('6000.00', (string) $invoice->total);
+        Mail::assertNothingQueued();
+
+        $this->assertNull(
+            app(RecurringBillingService::class)->invoiceAllServicesFor($user),
+            'Services already on an open invoice must not be billed again.',
+        );
+    }
+
     public function test_invoice_reminders_are_throttled(): void
     {
         Mail::fake();

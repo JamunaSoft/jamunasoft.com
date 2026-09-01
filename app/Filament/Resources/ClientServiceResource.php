@@ -115,7 +115,7 @@ class ClientServiceResource extends Resource
                     ->color('success')
                     ->visible(fn (ClientService $record) => $record->status === ClientServiceStatus::Active && ! $record->hasOpenInvoice())
                     ->requiresConfirmation()
-                    ->modalDescription('Create and email an invoice for the next billing period of this service.')
+                    ->modalDescription('Create an invoice for the next billing period of this service. It is not emailed automatically — review it, then use "Email to client".')
                     ->action(function (ClientService $record) {
                         $invoice = app(InvoiceService::class)->create(
                             userId: $record->user_id,
@@ -131,10 +131,11 @@ class ClientServiceResource extends Resource
                                 'item_id' => $record->id,
                             ]],
                             dueAt: $record->next_due_at,
+                            sendEmail: false,
                         );
 
                         Notification::make()
-                            ->title("Invoice {$invoice->reference} created and emailed")
+                            ->title("Invoice {$invoice->reference} created — review it, then email it to the client")
                             ->success()
                             ->send();
                     }),
