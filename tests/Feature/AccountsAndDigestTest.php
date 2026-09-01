@@ -7,6 +7,7 @@ use App\Mail\DailyDigest;
 use App\Mail\InvoiceCreated;
 use App\Models\EmailLog;
 use App\Models\Expense;
+use App\Models\LedgerEntry;
 use App\Models\User;
 use App\Services\InvoiceService;
 use App\Support\Settings;
@@ -85,6 +86,39 @@ class AccountsAndDigestTest extends TestCase
         $log->refresh();
         $this->assertSame('sent', $log->status);
         $this->assertNotNull($log->sent_at);
+    }
+
+    public function test_ledger_combines_payments_and_expenses(): void
+    {
+        $user = User::factory()->create();
+        $invoice = app(InvoiceService::class)->create(
+            userId: $user->id,
+            items: [['title' => 'Hosting', 'unit_price' => 5000]],
+            sendEmail: false,
+        );
+
+        Mail::fake();
+        app(InvoiceService::class)->recordPayment($invoice, 5000, 'bkash', 'TRX9');
+
+        Expense::create([
+            'expensed_at' => now(),
+            'category' => ExpenseCategory::ServerHosting,
+            'description' => 'VPS bill',
+            'vendor' => 'Hetzner',
+            'amount' => 1500,
+        ]);
+
+        $entries = LedgerEntry::all();
+
+        $this->assertCount(2, $entries);
+        $this->assertSame(3500.0, (float) $entries->sum('signed_amount'));
+
+        $in = $entries->firstWhere('direction', 'in');
+        $out = $entries->firstWhere('direction', 'out');
+        $this->assertSame($user->name, $in->counterparty);
+        $this->assertSame($invoice->reference, $in->invoice_reference);
+        $this->assertSame('Hetzner', $out->counterparty);
+        $this->assertSame(ExpenseCategory::ServerHosting, $out->category);
     }
 
     public function test_expense_totals_feed_the_reports(): void
