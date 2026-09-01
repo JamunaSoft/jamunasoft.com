@@ -78,6 +78,40 @@ class RecurringBillingService
     }
 
     /**
+     * The invoice line item for one service: title "Name — Cycle" plus a
+     * description built from the service's spec text, its domain, and the
+     * billing period covered (computed from next due date + cycle).
+     *
+     * @return array<string, mixed>
+     */
+    public function lineItemFor(ClientService $service): array
+    {
+        $lines = [];
+
+        if (filled($service->description)) {
+            $lines[] = trim($service->description);
+        }
+
+        if (filled($service->domain)) {
+            $lines[] = 'Domain: '.$service->domain;
+        }
+
+        if ($service->next_due_at !== null) {
+            $start = $service->next_due_at;
+            $end = $service->billing_cycle->advance($start)->subDay();
+            $lines[] = sprintf('Duration: %s – %s', $start->format('M d, Y'), $end->format('M d, Y'));
+        }
+
+        return [
+            'title' => sprintf('%s — %s', $service->name, $service->billing_cycle->getLabel()),
+            'description' => $lines !== [] ? implode("\n", $lines) : null,
+            'unit_price' => (float) $service->price,
+            'item_type' => 'client_service',
+            'item_id' => $service->id,
+        ];
+    }
+
+    /**
      * @param  Collection<int, ClientService>  $services
      * @return array<int, array<string, mixed>>
      */
@@ -85,13 +119,7 @@ class RecurringBillingService
     {
         return $services
             ->sortBy('next_due_at')
-            ->map(fn (ClientService $service) => [
-                'title' => sprintf('%s — %s', $service->name, $service->billing_cycle->getLabel()),
-                'description' => $service->domain ? 'Domain: '.$service->domain : null,
-                'unit_price' => (float) $service->price,
-                'item_type' => 'client_service',
-                'item_id' => $service->id,
-            ])
+            ->map(fn (ClientService $service) => $this->lineItemFor($service))
             ->values()
             ->all();
     }

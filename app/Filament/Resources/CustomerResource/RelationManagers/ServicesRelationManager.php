@@ -47,6 +47,11 @@ class ServicesRelationManager extends RelationManager
                     ->relationship('hostingPlan', 'name')
                     ->placeholder('Custom service'),
                 TextInput::make('domain')->placeholder('example.com'),
+                Textarea::make('description')
+                    ->rows(4)
+                    ->placeholder("Machine Type: KVM\nCPU Platform: AMD, 4 vCore\nMemory up to 4GB")
+                    ->helperText('Optional specs shown under the title on invoices — one line per row. Domain and billing period are added automatically.')
+                    ->columnSpanFull(),
                 Select::make('billing_cycle')
                     ->options(BillingCycle::class)
                     ->default(BillingCycle::Yearly)

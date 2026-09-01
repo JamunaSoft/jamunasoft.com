@@ -9,6 +9,7 @@ use App\Filament\Resources\ClientServiceResource\Pages\ListClientServices;
 use App\Models\ClientService;
 use App\Models\User;
 use App\Services\InvoiceService;
+use App\Services\RecurringBillingService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
@@ -65,6 +66,11 @@ class ClientServiceResource extends Resource
                     ->placeholder('Web Hosting — Basic')
                     ->helperText('What appears on invoices.'),
                 TextInput::make('domain')->placeholder('example.com'),
+                Textarea::make('description')
+                    ->rows(4)
+                    ->placeholder("Machine Type: KVM\nCPU Platform: AMD, 4 vCore\nMemory up to 4GB")
+                    ->helperText('Optional specs shown under the title on invoices — one line per row. Domain and billing period are added automatically.')
+                    ->columnSpanFull(),
                 Select::make('billing_cycle')
                     ->options(BillingCycle::class)
                     ->default(BillingCycle::Yearly)
@@ -119,12 +125,7 @@ class ClientServiceResource extends Resource
                     ->action(function (ClientService $record) {
                         $invoice = app(InvoiceService::class)->create(
                             userId: $record->user_id,
-                            items: [[
-                                'title' => sprintf('%s — %s', $record->name, $record->billing_cycle->getLabel()),
-                                'unit_price' => (float) $record->price,
-                                'item_type' => 'client_service',
-                                'item_id' => $record->id,
-                            ]],
+                            items: [app(RecurringBillingService::class)->lineItemFor($record)],
                             dueAt: $record->next_due_at,
                             sendEmail: false,
                         );

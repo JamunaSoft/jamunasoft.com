@@ -284,6 +284,8 @@ class BillingTest extends TestCase
             ClientService::create([
                 'user_id' => $user->id,
                 'name' => $name,
+                'description' => $name === 'Hosting' ? "Machine Type: KVM\nMemory up to 4GB" : null,
+                'domain' => $name === 'Hosting' ? 'example.com' : null,
                 'billing_cycle' => BillingCycle::Monthly,
                 'price' => $price,
                 'status' => ClientServiceStatus::Active,
@@ -298,6 +300,16 @@ class BillingTest extends TestCase
         $this->assertCount(2, $invoice->items);
         $this->assertSame('6000.00', (string) $invoice->total);
         Mail::assertNothingQueued();
+
+        // Specs, domain and the covered billing period all land in the line description.
+        $hostingItem = $invoice->items->firstWhere('title', 'Hosting — Monthly');
+        $expectedStart = now()->addDays(30);
+        $this->assertStringContainsString('Machine Type: KVM', $hostingItem->description);
+        $this->assertStringContainsString('Domain: example.com', $hostingItem->description);
+        $this->assertStringContainsString(
+            sprintf('Duration: %s – %s', $expectedStart->format('M d, Y'), $expectedStart->copy()->addMonthNoOverflow()->subDay()->format('M d, Y')),
+            $hostingItem->description,
+        );
 
         $this->assertNull(
             app(RecurringBillingService::class)->invoiceAllServicesFor($user),
