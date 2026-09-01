@@ -22,7 +22,19 @@
     <div class="bg-white py-16 lg:py-20">
         <div class="mx-auto grid max-w-7xl grid-cols-1 gap-12 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
             <div class="lg:col-span-2">
-                @if ($featuredImage)
+                @if ($videoEmbed = $portfolio->videoEmbedUrl())
+                    <div class="relative w-full overflow-hidden rounded-2xl shadow-sm" style="padding-top: 56.25%;">
+                        <iframe
+                            src="{{ $videoEmbed }}"
+                            title="{{ $portfolio->t('title') }}"
+                            class="absolute inset-0 h-full w-full"
+                            frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowfullscreen
+                            loading="lazy"
+                        ></iframe>
+                    </div>
+                @elseif ($featuredImage)
                     <img src="{{ $featuredImage }}" alt="{{ $portfolio->t('title') }}" class="w-full rounded-2xl shadow-sm" />
                 @else
                     <x-placeholder-image class="aspect-video w-full rounded-2xl" :label="$portfolio->t('title')" />

@@ -21,7 +21,7 @@ class Portfolio extends Model implements HasMedia
     protected $fillable = [
         'portfolio_category_id', 'title', 'slug', 'client_name', 'industry',
         'summary', 'challenge', 'solution', 'key_features', 'technologies', 'results',
-        'project_url', 'completed_at', 'testimonial_quote', 'testimonial_author',
+        'project_url', 'video_url', 'completed_at', 'testimonial_quote', 'testimonial_author',
         'is_featured', 'is_active', 'sort_order',
         'seo_title', 'seo_description', 'seo_noindex',
     ];
@@ -63,6 +63,29 @@ class Portfolio extends Model implements HasMedia
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class);
+    }
+
+    /**
+     * Embeddable player URL for the project's YouTube/Vimeo video, or null
+     * when there is no (recognizable) video link.
+     */
+    public function videoEmbedUrl(): ?string
+    {
+        $url = (string) $this->video_url;
+
+        if ($url === '') {
+            return null;
+        }
+
+        if (preg_match('~(?:youtube\.com/(?:watch\?.*?v=|shorts/|embed/|live/)|youtu\.be/)([A-Za-z0-9_-]{6,20})~', $url, $matches)) {
+            return 'https://www.youtube-nocookie.com/embed/'.$matches[1];
+        }
+
+        if (preg_match('~vimeo\.com/(?:video/)?(\d+)~', $url, $matches)) {
+            return 'https://player.vimeo.com/video/'.$matches[1];
+        }
+
+        return null;
     }
 
     public function scopeActive(Builder $query): Builder

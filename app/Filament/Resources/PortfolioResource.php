@@ -86,6 +86,11 @@ class PortfolioResource extends Resource
                     TextInput::make('project_url')
                         ->url()
                         ->helperText('Public project URL. Never include staging or internal URLs.'),
+                    TextInput::make('video_url')
+                        ->label('Video URL (YouTube/Vimeo)')
+                        ->url()
+                        ->placeholder('https://www.youtube.com/watch?v=...')
+                        ->helperText('For motion graphics: the player is embedded on the case-study page and cards get a play badge. Upload videos to YouTube, not the server.'),
                     DatePicker::make('completed_at')->label('Completion date'),
                 ]),
             ]),

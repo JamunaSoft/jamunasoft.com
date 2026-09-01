@@ -10,6 +10,13 @@
     @else
         <x-placeholder-image class="h-52 w-full" />
     @endif
+    @if ($portfolio->video_url)
+        <span class="pointer-events-none absolute inset-x-0 top-0 flex h-52 items-center justify-center" aria-hidden="true">
+            <span class="flex h-14 w-14 items-center justify-center rounded-full bg-navy-950/60 text-white backdrop-blur-sm transition-colors group-hover:bg-brand-600">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="ml-1 h-6 w-6"><path d="M8 5v14l11-7z" /></svg>
+            </span>
+        </span>
+    @endif
     <div class="flex flex-1 flex-col p-6">
         <div class="flex flex-wrap items-center gap-2">
             @if ($portfolio->category)
