@@ -274,6 +274,29 @@ class BillingTest extends TestCase
         }
     }
 
+    public function test_invoice_lead_time_is_configurable(): void
+    {
+        Mail::fake();
+
+        ClientService::create([
+            'user_id' => User::factory()->create()->id,
+            'name' => 'Hosting',
+            'billing_cycle' => BillingCycle::Monthly,
+            'price' => 3500,
+            'status' => ClientServiceStatus::Active,
+            'next_due_at' => now()->addDays(12),
+        ]);
+
+        // Outside the default 7-day window: nothing yet.
+        $this->assertCount(0, app(RecurringBillingService::class)->generateDueInvoices());
+
+        // With a 14-day lead time the invoice goes out today.
+        Settings::set(['invoice_ahead_days' => 14]);
+        $this->assertCount(1, app(RecurringBillingService::class)->generateDueInvoices());
+
+        Settings::flush();
+    }
+
     public function test_invoice_all_services_bills_everything_now_without_emailing(): void
     {
         Mail::fake();

@@ -137,6 +137,12 @@ class WebsiteSettings extends Page
                     ]),
 
                     Tab::make('Billing')->schema([
+                        TextInput::make('invoice_ahead_days')
+                            ->label('Invoice lead time (days)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->placeholder('7')
+                            ->helperText('Recurring service invoices are generated and emailed this many days before the due date. E.g. 14 = a bill due 15 Sep goes out on 1 Sep.'),
                         TextInput::make('invoice_tagline')
                             ->label('Invoice tagline')
                             ->placeholder('Your Gateway to Innovation, Powered by AARISH ENTERPRISE')

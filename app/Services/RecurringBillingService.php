@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Log;
 
 class RecurringBillingService
 {
-    /** Invoice this many days before a service's next due date. */
+    /** Default days-before-due to invoice; the invoice_ahead_days setting overrides it. */
     public const INVOICE_AHEAD_DAYS = 7;
 
     /** Nag an unpaid invoice at most every this many days. */
@@ -31,10 +31,12 @@ class RecurringBillingService
     {
         $generated = [];
 
+        $aheadDays = max(1, (int) settings('invoice_ahead_days', self::INVOICE_AHEAD_DAYS));
+
         $dueServices = ClientService::query()
             ->active()
             ->whereNotNull('next_due_at')
-            ->where('next_due_at', '<=', now()->addDays(self::INVOICE_AHEAD_DAYS))
+            ->where('next_due_at', '<=', now()->addDays($aheadDays))
             ->with('user')
             ->get()
             ->reject(fn (ClientService $service) => $service->hasOpenInvoice());
