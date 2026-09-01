@@ -16,8 +16,10 @@ This is a notice that an invoice has been generated on {{ $invoice->created_at->
 @foreach ($invoice->items as $item)
 | {{ $item->displayTitle() }}@if ($item->displayDescription())<br><small>{{ str_replace(["\r\n", "\r", "\n"], ' · ', $item->displayDescription()) }}</small>@endif | {{ (float) $item->quantity == 1 ? '1' : rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }} | ৳{{ number_format((float) $item->total, 2) }} |
 @endforeach
+@if ((float) $invoice->discount > 0)
 | **Sub Total** | | ৳{{ number_format((float) $invoice->subtotal, 2) }} |
-| **Discount** | | @if ((float) $invoice->discount > 0)−@endif৳{{ number_format((float) $invoice->discount, 2) }} |
+| **Discount** | | −৳{{ number_format((float) $invoice->discount, 2) }} |
+@endif
 | **Total** | | **৳{{ number_format((float) $invoice->total, 2) }}** |
 
 @if (settings('domain_payment_instructions'))
