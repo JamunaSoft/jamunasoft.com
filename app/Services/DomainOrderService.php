@@ -15,6 +15,7 @@ use App\Models\Tld;
 use App\Models\User;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -82,6 +83,7 @@ class DomainOrderService
                         $order->years,
                         str('year')->plural($order->years),
                     ),
+                    'description' => $this->renewalPeriodLine($order),
                     'unit_price' => (float) $order->amount,
                     'item_type' => 'domain_order',
                     'item_id' => $order->id,
@@ -237,6 +239,29 @@ class DomainOrderService
     protected function processRenewal(DomainOrder $order): array
     {
         return $this->registrars->for($order->registrar)->renew($order->domain_name, $order->years);
+    }
+
+    /**
+     * "Duration: …" line for renewal invoices: the new period runs from the
+     * domain's current expiry. Null for registrations/transfers (their
+     * period only starts once the registrar completes the order).
+     */
+    protected function renewalPeriodLine(DomainOrder $order): ?string
+    {
+        if ($order->type !== DomainOrderType::Renew) {
+            return null;
+        }
+
+        $expiry = Domain::where('name', $order->domain_name)->value('expires_at');
+
+        if ($expiry === null) {
+            return null;
+        }
+
+        $start = Carbon::parse($expiry);
+        $end = $start->copy()->addYears((int) $order->years)->subDay();
+
+        return sprintf('Duration: %s – %s', $start->format('M d, Y'), $end->format('M d, Y'));
     }
 
     protected function sendOrderEmails(DomainOrder $order): void
