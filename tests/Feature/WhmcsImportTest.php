@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BillingCycle;
 use App\Enums\InvoiceStatus;
+use App\Models\ClientService;
 use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -80,6 +82,32 @@ class WhmcsImportTest extends TestCase
                         'amount' => '2415.00',
                     ]]],
                 ]),
+                'GetClientsProducts' => Http::response([
+                    'result' => 'success',
+                    'totalresults' => 2,
+                    'products' => ['product' => [
+                        [
+                            'id' => 11,
+                            'clientid' => 74,
+                            'name' => '2GB Hosting',
+                            'domain' => 'caringhandsbd.com',
+                            'status' => 'Active',
+                            'billingcycle' => 'Annually',
+                            'recurringamount' => '2000.00',
+                            'nextduedate' => '2027-09-14',
+                        ],
+                        [
+                            'id' => 12,
+                            'clientid' => 74,
+                            'name' => 'Setup Fee',
+                            'domain' => '',
+                            'status' => 'Active',
+                            'billingcycle' => 'One Time',
+                            'recurringamount' => '500.00',
+                            'nextduedate' => '0000-00-00',
+                        ],
+                    ]],
+                ]),
                 default => Http::response(['result' => 'error', 'message' => 'unexpected '.$request['action']], 500),
             };
         });
@@ -125,5 +153,27 @@ class WhmcsImportTest extends TestCase
 
         $this->assertSame('Already Set Ltd', $user->refresh()->company_name);
         $this->assertSame('Belkuchi', $user->city, 'Empty fields still get filled.');
+    }
+
+    public function test_active_whmcs_products_become_recurring_services(): void
+    {
+        $client = User::factory()->create(['email' => 'talha@example.com']);
+
+        $this->artisan('whmcs:import-services --commit')->assertSuccessful();
+
+        $service = ClientService::where('user_id', $client->id)->first();
+        $this->assertNotNull($service);
+        $this->assertSame('2GB Hosting', $service->name);
+        $this->assertSame('caringhandsbd.com', $service->domain);
+        $this->assertSame(BillingCycle::Yearly, $service->billing_cycle);
+        $this->assertSame('2000.00', (string) $service->price);
+        $this->assertTrue($service->next_due_at->isSameDay('2027-09-14'));
+
+        // One-time items are not recurring — never imported.
+        $this->assertSame(1, ClientService::where('user_id', $client->id)->count());
+
+        // Idempotent: a second run imports nothing new.
+        $this->artisan('whmcs:import-services --commit')->assertSuccessful();
+        $this->assertSame(1, ClientService::where('user_id', $client->id)->count());
     }
 }

@@ -53,6 +53,17 @@ class WhmcsClient
     }
 
     /**
+     * All client products/services: name, domain, billingcycle,
+     * recurringamount, nextduedate, status, ...
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function allProducts(): array
+    {
+        return $this->paginate('GetClientsProducts', 'products.product');
+    }
+
+    /**
      * All invoices with the given status (Unpaid, Paid, Cancelled, ...).
      *
      * @return array<int, array<string, mixed>>

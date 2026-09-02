@@ -374,6 +374,46 @@ class BillingTest extends TestCase
         );
     }
 
+    public function test_consolidated_services_keep_billing_together_every_cycle(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+
+        foreach ([['Hosting', 2000, 5], ['Maintenance', 2500, 15]] as [$name, $price, $dueIn]) {
+            ClientService::create([
+                'user_id' => $user->id,
+                'name' => $name,
+                'billing_cycle' => BillingCycle::Monthly,
+                'price' => $price,
+                'status' => ClientServiceStatus::Active,
+                'next_due_at' => now()->addDays($dueIn),
+            ]);
+        }
+
+        // Batch day: both services bill on ONE invoice despite different due dates.
+        Settings::set(['invoice_generation_day' => now()->day]);
+
+        $first = collect(app(RecurringBillingService::class)->generateDueInvoices());
+        $this->assertCount(1, $first);
+        $this->assertCount(2, $first->first()->items);
+        $this->assertSame('4500.00', (string) $first->first()->total);
+
+        // Paying advances BOTH services a month…
+        app(InvoiceService::class)->recordPayment($first->first(), 4500, 'bkash');
+
+        // …and the next cycle bills them together again.
+        $this->travel(1)->months();
+        Settings::set(['invoice_generation_day' => now()->day]);
+
+        $second = collect(app(RecurringBillingService::class)->generateDueInvoices());
+        $this->assertCount(1, $second, 'The consolidated bill recurs as one invoice every cycle.');
+        $this->assertCount(2, $second->first()->items);
+
+        $this->travelBack();
+        Settings::flush();
+    }
+
     public function test_invoice_reminders_are_throttled(): void
     {
         Mail::fake();
