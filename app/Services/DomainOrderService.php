@@ -246,7 +246,7 @@ class DomainOrderService
      * domain's current expiry. Null for registrations/transfers (their
      * period only starts once the registrar completes the order).
      */
-    protected function renewalPeriodLine(DomainOrder $order): ?string
+    public function renewalPeriodLine(DomainOrder $order): ?string
     {
         if ($order->type !== DomainOrderType::Renew) {
             return null;
