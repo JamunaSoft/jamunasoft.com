@@ -25,7 +25,7 @@ class StatementController extends Controller
             'from' => $from,
             'to' => $to ?? now(),
             'logo' => $renderer->logoDataUri(),
-        ])->setPaper('a4');
+        ])->setPaper('a4')->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->stream('statement-'.str($user->name)->slug().'.pdf');
     }
@@ -42,7 +42,7 @@ class StatementController extends Controller
             'from' => $from,
             'to' => $to ?? now(),
             'logo' => $renderer->logoDataUri(),
-        ])->setPaper('a4');
+        ])->setPaper('a4')->setOption('isFontSubsettingEnabled', true);
 
         return $pdf->stream('statement-'.str($vendor->name)->slug().'.pdf');
     }
