@@ -161,6 +161,7 @@ class RecurringBillingService
 
         Invoice::query()
             ->where('status', InvoiceStatus::Unpaid)
+            ->where('auto_remind', true)
             ->whereNotNull('due_at')
             ->where('due_at', '<=', now()->addDays(self::REMINDER_INTERVAL_DAYS))
             ->where(fn ($query) => $query

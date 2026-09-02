@@ -22,6 +22,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
@@ -30,6 +31,7 @@ use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -108,6 +110,9 @@ class InvoiceResource extends Resource
                 TextInput::make('discount')->numeric()->prefix('৳')->default(0),
                 Textarea::make('notes')->rows(2),
             ]),
+            Toggle::make('auto_remind')
+                ->label('Automatic payment reminders')
+                ->helperText('When on, unpaid/overdue reminders go out every 3 days automatically. Manual "Send reminder" always works.'),
         ]);
     }
 
@@ -172,6 +177,9 @@ class InvoiceResource extends Resource
                     ->formatStateUsing(fn (InvoiceStatus $state, Invoice $record) => $record->isOverdue() ? 'Overdue' : $state->getLabel())
                     ->color(fn (InvoiceStatus $state, Invoice $record) => $record->isOverdue() ? 'danger' : $state->getColor()),
                 TextColumn::make('due_at')->date()->sortable(),
+                ToggleColumn::make('auto_remind')
+                    ->label('Auto remind')
+                    ->disabled(fn (Invoice $record) => $record->status !== InvoiceStatus::Unpaid),
                 TextColumn::make('created_at')->dateTime()->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('created_at', 'desc')

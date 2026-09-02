@@ -16,7 +16,7 @@ class Invoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'reference', 'token', 'user_id', 'billing_profile_id', 'status', 'currency', 'subtotal', 'discount',
+        'reference', 'token', 'user_id', 'billing_profile_id', 'status', 'auto_remind', 'currency', 'subtotal', 'discount',
         'total', 'amount_paid', 'due_at', 'paid_at', 'last_reminded_at',
         'notes', 'meta',
     ];
@@ -32,6 +32,7 @@ class Invoice extends Model
     {
         return [
             'status' => InvoiceStatus::class,
+            'auto_remind' => 'boolean',
             'subtotal' => 'decimal:2',
             'discount' => 'decimal:2',
             'total' => 'decimal:2',

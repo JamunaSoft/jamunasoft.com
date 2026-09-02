@@ -60,6 +60,7 @@ class SendDailyDigest extends Command
             'unpaidCount' => Invoice::unpaid()->count(),
             'unpaidTotal' => (float) Invoice::unpaid()->sum(DB::raw('total - amount_paid')),
             'overdueCount' => Invoice::unpaid()->whereDate('due_at', '<', now())->count(),
+            'overdueMuted' => Invoice::unpaid()->where('auto_remind', false)->whereDate('due_at', '<', now())->count(),
             'domainsExpiring' => Domain::expiringWithin(30)->count(),
             'servicesDueSoon' => ClientService::active()
                 ->whereNotNull('next_due_at')

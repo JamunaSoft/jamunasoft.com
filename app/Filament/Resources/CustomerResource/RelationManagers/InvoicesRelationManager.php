@@ -17,11 +17,13 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Table;
 
 class InvoicesRelationManager extends RelationManager
@@ -73,6 +75,9 @@ class InvoicesRelationManager extends RelationManager
                 TextInput::make('discount')->numeric()->prefix('৳')->default(0),
                 Textarea::make('notes')->rows(2),
             ])->columnSpanFull(),
+            Toggle::make('auto_remind')
+                ->label('Automatic payment reminders')
+                ->helperText('When on, unpaid/overdue reminders go out every 3 days automatically.'),
         ]);
     }
 
@@ -95,6 +100,9 @@ class InvoicesRelationManager extends RelationManager
                     ->formatStateUsing(fn (InvoiceStatus $state, Invoice $record) => $record->isOverdue() ? 'Overdue' : $state->getLabel())
                     ->color(fn (InvoiceStatus $state, Invoice $record) => $record->isOverdue() ? 'danger' : $state->getColor()),
                 TextColumn::make('due_at')->date()->sortable(),
+                ToggleColumn::make('auto_remind')
+                    ->label('Auto remind')
+                    ->disabled(fn (Invoice $record) => $record->status !== InvoiceStatus::Unpaid),
             ])
             ->defaultSort('created_at', 'desc')
             ->headerActions([

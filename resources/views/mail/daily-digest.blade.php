@@ -23,6 +23,7 @@
 |---|---:|
 | Unpaid invoices | {{ $data['unpaidCount'] }} (৳{{ number_format($data['unpaidTotal'], 0) }}) |
 | Overdue invoices | {{ $data['overdueCount'] }} |
+| Overdue with reminders OFF | {{ $data['overdueMuted'] ?? 0 }} |
 | Domains expiring ≤ 30 days | {{ $data['domainsExpiring'] }} |
 | Services due ≤ 30 days | {{ $data['servicesDueSoon'] }} |
 | Tickets awaiting reply | {{ $data['openTickets'] }} |

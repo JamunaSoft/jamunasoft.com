@@ -424,6 +424,7 @@ class BillingTest extends TestCase
             dueAt: now()->addDay(),
             sendEmail: false,
         );
+        $invoice->update(['auto_remind' => true]);
 
         $billing = app(RecurringBillingService::class);
 
@@ -432,6 +433,25 @@ class BillingTest extends TestCase
 
         $this->assertSame(0, $billing->sendReminders(), 'Reminders must not repeat within the interval.');
         $this->assertNotNull($invoice->refresh()->last_reminded_at);
+    }
+
+    public function test_reminders_are_opt_in_per_invoice(): void
+    {
+        Mail::fake();
+
+        $muted = app(InvoiceService::class)->create(
+            userId: User::factory()->create()->id,
+            items: [['description' => 'Hosting', 'unit_price' => 5000]],
+            dueAt: now()->subDays(10), // overdue, but auto_remind defaults to OFF
+            sendEmail: false,
+        );
+
+        $this->assertSame(0, app(RecurringBillingService::class)->sendReminders());
+        Mail::assertNotQueued(InvoiceReminder::class);
+
+        $muted->update(['auto_remind' => true]);
+        $this->assertSame(1, app(RecurringBillingService::class)->sendReminders());
+        Mail::assertQueued(InvoiceReminder::class, 1);
     }
 
     public function test_clients_see_only_their_own_invoices(): void
