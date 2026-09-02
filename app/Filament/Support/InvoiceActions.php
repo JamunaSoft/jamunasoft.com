@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Services\InvoiceService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
+use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -120,6 +121,9 @@ class InvoiceActions
 
                     return redirect(InvoiceResource::getUrl('edit', ['record' => $copy]));
                 }),
+            DeleteAction::make()
+                ->visible(fn (Invoice $record) => $record->payments()->doesntExist())
+                ->modalDescription('Remove this invoice permanently. Only invoices without any recorded payment can be deleted — cancel instead if money ever touched it.'),
             Action::make('cancel')
                 ->label('Cancel')
                 ->icon(Heroicon::OutlinedXMark)

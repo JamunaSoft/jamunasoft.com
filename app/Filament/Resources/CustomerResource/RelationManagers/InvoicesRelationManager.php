@@ -8,6 +8,7 @@ use App\Filament\Support\InvoiceActions;
 use App\Models\Invoice;
 use App\Services\InvoiceService;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\ViewAction;
@@ -109,12 +110,14 @@ class InvoicesRelationManager extends RelationManager
             ])
             ->recordActions([
                 ViewAction::make(),
-                Action::make('edit')
-                    ->label('Edit')
-                    ->icon(Heroicon::OutlinedPencilSquare)
-                    ->visible(fn (Invoice $record) => $record->status->isOpen())
-                    ->url(fn (Invoice $record) => InvoiceResource::getUrl('edit', ['record' => $record])),
-                ...InvoiceActions::recordActions(),
+                ActionGroup::make([
+                    Action::make('edit')
+                        ->label('Edit')
+                        ->icon(Heroicon::OutlinedPencilSquare)
+                        ->visible(fn (Invoice $record) => $record->status->isOpen())
+                        ->url(fn (Invoice $record) => InvoiceResource::getUrl('edit', ['record' => $record])),
+                    ...InvoiceActions::recordActions(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

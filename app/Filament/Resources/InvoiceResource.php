@@ -13,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
@@ -181,8 +182,10 @@ class InvoiceResource extends Resource
             ])
             ->recordActions([
                 ViewAction::make(),
-                EditAction::make(),
-                ...InvoiceActions::recordActions(),
+                ActionGroup::make([
+                    EditAction::make(),
+                    ...InvoiceActions::recordActions(),
+                ]),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
