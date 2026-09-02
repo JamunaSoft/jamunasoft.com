@@ -143,6 +143,12 @@ class WebsiteSettings extends Page
                             ->minValue(1)
                             ->placeholder('7')
                             ->helperText('Recurring service invoices are generated and emailed this many days before the due date. E.g. 14 = a bill due 15 Sep goes out on 1 Sep.'),
+                        TextInput::make('reminder_interval_days')
+                            ->label('Reminder interval (days)')
+                            ->numeric()
+                            ->minValue(1)
+                            ->placeholder('3')
+                            ->helperText('Auto reminders (only invoices with "Auto remind" ON) start this many days before the due date and repeat at this interval until paid.'),
                         TextInput::make('invoice_generation_day')
                             ->label('Monthly billing day (optional)')
                             ->numeric()

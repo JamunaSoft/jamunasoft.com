@@ -112,7 +112,7 @@ class InvoiceResource extends Resource
             ]),
             Toggle::make('auto_remind')
                 ->label('Automatic payment reminders')
-                ->helperText('When on, unpaid/overdue reminders go out every 3 days automatically. Manual "Send reminder" always works.'),
+                ->helperText('When on, unpaid/overdue reminders go out automatically at the interval set in Billing settings. Manual "Send reminder" always works.'),
         ]);
     }
 

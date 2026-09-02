@@ -77,7 +77,7 @@ class InvoicesRelationManager extends RelationManager
             ])->columnSpanFull(),
             Toggle::make('auto_remind')
                 ->label('Automatic payment reminders')
-                ->helperText('When on, unpaid/overdue reminders go out every 3 days automatically.'),
+                ->helperText('When on, unpaid/overdue reminders go out automatically at the interval set in Billing settings.'),
         ]);
     }
 

@@ -14,7 +14,7 @@ class RecurringBillingService
     /** Default days-before-due to invoice; the invoice_ahead_days setting overrides it. */
     public const INVOICE_AHEAD_DAYS = 7;
 
-    /** Nag an unpaid invoice at most every this many days. */
+    /** Default nag interval; the reminder_interval_days setting overrides it. */
     public const REMINDER_INTERVAL_DAYS = 3;
 
     public function __construct(protected InvoiceService $invoices) {}
@@ -158,15 +158,16 @@ class RecurringBillingService
     public function sendReminders(): int
     {
         $sent = 0;
+        $interval = max(1, (int) settings('reminder_interval_days', self::REMINDER_INTERVAL_DAYS));
 
         Invoice::query()
             ->where('status', InvoiceStatus::Unpaid)
             ->where('auto_remind', true)
             ->whereNotNull('due_at')
-            ->where('due_at', '<=', now()->addDays(self::REMINDER_INTERVAL_DAYS))
+            ->where('due_at', '<=', now()->addDays($interval))
             ->where(fn ($query) => $query
                 ->whereNull('last_reminded_at')
-                ->orWhere('last_reminded_at', '<=', now()->subDays(self::REMINDER_INTERVAL_DAYS)))
+                ->orWhere('last_reminded_at', '<=', now()->subDays($interval)))
             ->with('user')
             ->each(function (Invoice $invoice) use (&$sent) {
                 try {

@@ -435,6 +435,28 @@ class BillingTest extends TestCase
         $this->assertNotNull($invoice->refresh()->last_reminded_at);
     }
 
+    public function test_reminder_interval_is_configurable(): void
+    {
+        Mail::fake();
+
+        $invoice = app(InvoiceService::class)->create(
+            userId: User::factory()->create()->id,
+            items: [['description' => 'Hosting', 'unit_price' => 5000]],
+            dueAt: now()->addDay(),
+            sendEmail: false,
+        );
+        $invoice->update(['auto_remind' => true, 'last_reminded_at' => now()->subHours(30)]);
+
+        // Default 3-day interval: 30 hours is too soon to nag again.
+        $this->assertSame(0, app(RecurringBillingService::class)->sendReminders());
+
+        // Daily interval: it goes out.
+        Settings::set(['reminder_interval_days' => 1]);
+        $this->assertSame(1, app(RecurringBillingService::class)->sendReminders());
+
+        Settings::flush();
+    }
+
     public function test_reminders_are_opt_in_per_invoice(): void
     {
         Mail::fake();
