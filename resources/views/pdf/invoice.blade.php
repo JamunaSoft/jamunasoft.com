@@ -220,17 +220,17 @@ $client = $invoice->user;
 <table class="layout" style="margin-top: 14px;">
     <tr>
         <td>
+            @php $billed = $invoice->billedTo(); @endphp
             <div class="sec-label">Invoiced To</div>
-            @if ($client->company_name)
-                <div style="font-weight: bold; font-size: 13px;">{{ $client->company_name }}</div>
-                <div class="muted">ATTN: {{ $client->name }}</div>
+            @if ($billed['company'])
+                <div style="font-weight: bold; font-size: 13px;">{{ $billed['company'] }}</div>
+                <div class="muted">ATTN: {{ $billed['name'] }}</div>
             @else
-                <div style="font-weight: bold; font-size: 13px;">{{ $client->name }}</div>
+                <div style="font-weight: bold; font-size: 13px;">{{ $billed['name'] }}</div>
             @endif
-            @if ($client->address)<div>{{ $client->address }}</div>@endif
-            @php $cityLine = trim(implode(', ', array_filter([trim(($client->city ?? '').' '.($client->postal_code ?? '')), $client->country]))); @endphp
-            @if ($cityLine !== '')<div>{{ $cityLine }}</div>@endif
-            <div class="muted">{{ $client->email }}</div>
+            @if ($billed['address'])<div>{{ $billed['address'] }}</div>@endif
+            @if ($billed['city_line'])<div>{{ $billed['city_line'] }}</div>@endif
+            <div class="muted">{{ $billed['email'] }}</div>
         </td>
         <td style="width: 230px;">
             <div class="meta-box">

@@ -6,6 +6,7 @@ use App\Enums\BillingCycle;
 use App\Enums\ClientServiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\ClientServiceResource\Pages\ListClientServices;
+use App\Models\BillingProfile;
 use App\Models\ClientService;
 use App\Models\User;
 use App\Services\InvoiceService;
@@ -20,6 +21,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -56,7 +58,15 @@ class ClientServiceResource extends Resource
                     ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
                     ->searchable(['name', 'email', 'company_name'])
                     ->preload()
+                    ->live()
                     ->required(),
+                Select::make('billing_profile_id')
+                    ->label('Billing profile')
+                    ->options(fn (Get $get) => BillingProfile::where('user_id', $get('user_id'))->pluck('company_name', 'id'))
+                    ->placeholder('Default (client\'s own details)')
+                    ->visible(fn (Get $get) => filled($get('user_id'))
+                        && BillingProfile::where('user_id', $get('user_id'))->exists())
+                    ->helperText('Which company this service is billed under.'),
                 Select::make('hosting_plan_id')
                     ->label('Hosting plan (optional)')
                     ->relationship('hostingPlan', 'name')
@@ -128,6 +138,7 @@ class ClientServiceResource extends Resource
                             items: [app(RecurringBillingService::class)->lineItemFor($record)],
                             dueAt: $record->next_due_at,
                             sendEmail: false,
+                            billingProfileId: $record->billing_profile_id,
                         );
 
                         Notification::make()

@@ -47,10 +47,12 @@ class StatementService
             ->whereIn('status', self::BILLABLE)
             ->when($from, fn ($query) => $query->where('created_at', '>=', $from->startOfDay()))
             ->where('created_at', '<=', $to)
+            ->with('billingProfile')
             ->get()
             ->each(fn (Invoice $invoice) => $rows->push([
                 'date' => $invoice->created_at,
-                'description' => 'Invoice '.$invoice->reference,
+                'description' => 'Invoice '.$invoice->reference
+                    .($invoice->billingProfile ? ' — '.$invoice->billingProfile->company_name : ''),
                 'debit' => (float) $invoice->total,
                 'credit' => 0.0,
             ]));

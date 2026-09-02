@@ -46,6 +46,11 @@ class ServicesRelationManager extends RelationManager
                     ->label('Hosting plan (optional)')
                     ->relationship('hostingPlan', 'name')
                     ->placeholder('Custom service'),
+                Select::make('billing_profile_id')
+                    ->label('Billing profile')
+                    ->options(fn () => $this->getOwnerRecord()->billingProfiles()->pluck('company_name', 'id'))
+                    ->placeholder('Default (client\'s own details)')
+                    ->helperText('Which company this service is billed under.'),
                 TextInput::make('domain')->placeholder('example.com'),
                 Textarea::make('description')
                     ->rows(4)
@@ -96,9 +101,9 @@ class ServicesRelationManager extends RelationManager
                         /** @var User $client */
                         $client = $this->getOwnerRecord();
 
-                        $invoice = app(RecurringBillingService::class)->invoiceAllServicesFor($client);
+                        $invoices = app(RecurringBillingService::class)->invoiceAllServicesFor($client);
 
-                        if ($invoice === null) {
+                        if ($invoices->isEmpty()) {
                             Notification::make()
                                 ->title('Nothing to invoice')
                                 ->body('Every active service is already covered by an open invoice.')
@@ -109,8 +114,10 @@ class ServicesRelationManager extends RelationManager
                         }
 
                         Notification::make()
-                            ->title("Invoice {$invoice->reference} created — ৳".number_format((float) $invoice->total, 2))
-                            ->body('Review it on the Invoices tab, then use "Email to client" to send it.')
+                            ->title($invoices->count() === 1
+                                ? "Invoice {$invoices->first()->reference} created — ৳".number_format((float) $invoices->first()->total, 2)
+                                : $invoices->count().' invoices created (one per billing profile): '.$invoices->pluck('reference')->implode(', '))
+                            ->body('Review on the Invoices tab, then use "Email to client" or "Email together".')
                             ->success()
                             ->send();
                     }),

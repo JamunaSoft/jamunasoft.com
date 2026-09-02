@@ -14,7 +14,7 @@ class ClientService extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'hosting_plan_id', 'name', 'description', 'domain', 'billing_cycle',
+        'user_id', 'billing_profile_id', 'hosting_plan_id', 'name', 'description', 'domain', 'billing_cycle',
         'price', 'status', 'next_due_at', 'notes',
     ];
 
@@ -31,6 +31,11 @@ class ClientService extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function billingProfile(): BelongsTo
+    {
+        return $this->belongsTo(BillingProfile::class);
     }
 
     public function hostingPlan(): BelongsTo

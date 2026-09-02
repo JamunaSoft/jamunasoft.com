@@ -42,7 +42,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 class="text-lg font-bold text-navy-900">
-                            {{ __('Invoiced to') }} {{ $invoice->user->company_name ?: $invoice->user->name }}
+                            {{ __('Invoiced to') }} {{ $invoice->billedTo()['company'] ?: $invoice->billedTo()['name'] }}
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
                             {{ __('Issued :issued', ['issued' => $invoice->created_at->format('d M Y')]) }}

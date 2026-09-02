@@ -6,6 +6,7 @@ use App\Enums\InvoiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\CustomerResource\Pages\ListCustomers;
 use App\Filament\Resources\CustomerResource\Pages\ViewCustomer;
+use App\Filament\Resources\CustomerResource\RelationManagers\BillingProfilesRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\DomainOrdersRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\DomainsRelationManager;
 use App\Filament\Resources\CustomerResource\RelationManagers\EmailLogsRelationManager;
@@ -231,6 +232,7 @@ class CustomerResource extends Resource
             ServicesRelationManager::class,
             InvoicesRelationManager::class,
             QuotationsRelationManager::class,
+            BillingProfilesRelationManager::class,
             DomainOrdersRelationManager::class,
             TicketsRelationManager::class,
             EmailLogsRelationManager::class,

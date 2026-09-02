@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\ClientServiceStatus;
 use App\Enums\DomainOrderStatus;
 use App\Enums\InvoiceStatus;
+use App\Mail\InvoiceBundle;
 use App\Mail\InvoiceCreated;
 use App\Mail\InvoicePaid;
 use App\Mail\InvoiceReminder;
@@ -33,11 +34,13 @@ class InvoiceService
         ?\DateTimeInterface $dueAt = null,
         ?string $notes = null,
         bool $sendEmail = true,
+        ?int $billingProfileId = null,
     ): Invoice {
-        $invoice = DB::transaction(function () use ($userId, $items, $dueAt, $notes): Invoice {
+        $invoice = DB::transaction(function () use ($userId, $items, $dueAt, $notes, $billingProfileId): Invoice {
             $invoice = Invoice::create([
                 'reference' => Invoice::generateReference(),
                 'user_id' => $userId,
+                'billing_profile_id' => $billingProfileId,
                 'status' => InvoiceStatus::Unpaid,
                 'due_at' => $dueAt ?? now()->addDays(7),
                 'notes' => $notes,
@@ -96,7 +99,7 @@ class InvoiceService
     {
         try {
             $mail = new InvoiceCreated($invoice);
-            $recipients = $invoice->user->billingEmails();
+            $recipients = $invoice->recipients();
             Mail::to($recipients)
                 ->bcc(config('mail.billing_bcc'))
                 ->queue($mail);
@@ -139,7 +142,7 @@ class InvoiceService
 
             try {
                 $mail = new InvoicePaid($invoice);
-                $recipients = $invoice->user->billingEmails();
+                $recipients = $invoice->recipients();
                 Mail::to($recipients)
                     ->bcc(config('mail.billing_bcc'))
                     ->queue($mail);
@@ -153,13 +156,48 @@ class InvoiceService
     }
 
     /**
+     * One email carrying several invoices (each PDF attached) — used when
+     * multiple invoices for the same recipients are generated together,
+     * e.g. one owner with two companies.
+     *
+     * @param  Collection<int, Invoice>  $invoices
+     */
+    public function sendBundle(Collection $invoices): void
+    {
+        $invoices = $invoices->values();
+
+        if ($invoices->count() === 1) {
+            $this->sendInvoice($invoices->first());
+
+            return;
+        }
+
+        try {
+            $recipients = $invoices->first()->recipients();
+            $mail = new InvoiceBundle($invoices->all());
+
+            Mail::to($recipients)
+                ->bcc(config('mail.billing_bcc'))
+                ->queue($mail);
+
+            foreach ($invoices as $invoice) {
+                $this->logEmail($invoice, 'invoice_created', $mail->envelope()->subject, implode(', ', $recipients));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Invoice bundle email failed: '.$e->getMessage(), [
+                'invoices' => $invoices->pluck('reference')->all(),
+            ]);
+        }
+    }
+
+    /**
      * Queue a payment-reminder email (both billing inboxes, BCC office) and
      * stamp last_reminded_at. Throws on failure so callers can react.
      */
     public function sendReminder(Invoice $invoice): void
     {
         $mail = new InvoiceReminder($invoice);
-        $recipients = $invoice->user->billingEmails();
+        $recipients = $invoice->recipients();
 
         Mail::to($recipients)
             ->bcc(config('mail.billing_bcc'))

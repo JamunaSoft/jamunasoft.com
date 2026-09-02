@@ -21,9 +21,9 @@ class RecurringBillingService
 
     /**
      * Generate invoices for active services whose next due date is within the
-     * look-ahead window. All of a client's due services are consolidated into
-     * ONE invoice (one line item each) — paying it advances every service's
-     * next due date. Idempotent: a service with an open invoice is skipped.
+     * look-ahead window. A client's due services are consolidated into one
+     * invoice PER BILLING PROFILE; invoices sharing the same recipients go
+     * out in a single bundled email. Idempotent per service.
      *
      * @return array<int, Invoice>
      */
@@ -53,24 +53,36 @@ class RecurringBillingService
             ->get()
             ->reject(fn (ClientService $service) => $service->hasOpenInvoice());
 
-        foreach ($dueServices->groupBy('user_id') as $services) {
+        // One invoice per client per billing profile (an owner with two
+        // companies gets two invoices)…
+        foreach ($dueServices->groupBy(fn (ClientService $service) => $service->user_id.':'.($service->billing_profile_id ?? 0)) as $services) {
             $generated[] = $this->invoices->create(
                 userId: $services->first()->user_id,
                 items: $this->serviceLineItems($services),
                 dueAt: $services->min('next_due_at'),
+                sendEmail: false,
+                billingProfileId: $services->first()->billing_profile_id,
             );
         }
+
+        // …then one EMAIL per distinct recipient set: same inbox gets a
+        // single bundle, a profile with its own email gets its own mail.
+        collect($generated)
+            ->groupBy(fn (Invoice $invoice) => implode('|', $invoice->recipients()))
+            ->each(fn ($invoices) => $this->invoices->sendBundle($invoices->values()));
 
         return $generated;
     }
 
     /**
-     * One consolidated invoice for ALL of a client's active services that are
-     * not already on an open invoice — regardless of the look-ahead window.
-     * Used by the "Invoice all services" button on the client profile.
-     * Not emailed automatically; returns null when there is nothing to bill.
+     * Invoices for ALL of a client's active services not already on an open
+     * invoice — one invoice per billing profile, regardless of the
+     * look-ahead window. Used by the "Invoice all services" button.
+     * Not emailed automatically.
+     *
+     * @return Collection<int, Invoice>
      */
-    public function invoiceAllServicesFor(User $user): ?Invoice
+    public function invoiceAllServicesFor(User $user): Collection
     {
         $services = ClientService::query()
             ->active()
@@ -79,16 +91,16 @@ class RecurringBillingService
             ->get()
             ->reject(fn (ClientService $service) => $service->hasOpenInvoice());
 
-        if ($services->isEmpty()) {
-            return null;
-        }
-
-        return $this->invoices->create(
-            userId: $user->id,
-            items: $this->serviceLineItems($services),
-            dueAt: $services->min('next_due_at'),
-            sendEmail: false,
-        );
+        return $services
+            ->groupBy(fn (ClientService $service) => $service->billing_profile_id ?? 0)
+            ->map(fn (Collection $group) => $this->invoices->create(
+                userId: $user->id,
+                items: $this->serviceLineItems($group),
+                dueAt: $group->min('next_due_at'),
+                sendEmail: false,
+                billingProfileId: $group->first()->billing_profile_id,
+            ))
+            ->values();
     }
 
     /**

@@ -1,7 +1,7 @@
 <x-mail::message>
 # Invoice {{ $invoice->reference }}
 
-Dear {{ $invoice->user->name }}@if (filled($invoice->user->company_name)) ({{ $invoice->user->company_name }})@endif,
+Dear {{ $invoice->user->name }}@if (filled($invoice->billedTo()['company'])) ({{ $invoice->billedTo()['company'] }})@endif,
 
 This is a notice that an invoice has been generated on {{ $invoice->created_at->format('l, F jS, Y') }}.
 

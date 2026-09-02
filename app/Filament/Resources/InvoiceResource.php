@@ -8,6 +8,7 @@ use App\Filament\Resources\InvoiceResource\Pages\CreateInvoice;
 use App\Filament\Resources\InvoiceResource\Pages\EditInvoice;
 use App\Filament\Resources\InvoiceResource\Pages\ListInvoices;
 use App\Filament\Support\InvoiceActions;
+use App\Models\BillingProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\User;
@@ -24,6 +25,7 @@ use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -70,7 +72,15 @@ class InvoiceResource extends Resource
                     ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
                     ->searchable(['name', 'email', 'company_name'])
                     ->preload()
+                    ->live()
                     ->required(),
+                Select::make('billing_profile_id')
+                    ->label('Billing profile')
+                    ->options(fn (Get $get) => BillingProfile::where('user_id', $get('user_id'))->pluck('company_name', 'id'))
+                    ->placeholder('Default (client\'s own details)')
+                    ->visible(fn (Get $get) => filled($get('user_id'))
+                        && BillingProfile::where('user_id', $get('user_id'))->exists())
+                    ->helperText('Which company this invoice is billed to.'),
                 DatePicker::make('due_at')
                     ->label('Due date')
                     ->default(now()->addDays(7))
@@ -106,6 +116,9 @@ class InvoiceResource extends Resource
             Grid::make(3)->schema([
                 TextEntry::make('reference')->copyable(),
                 TextEntry::make('user.name')->label('Client'),
+                TextEntry::make('billingProfile.company_name')
+                    ->label('Billed to')
+                    ->placeholder('Default profile'),
                 TextEntry::make('status')->badge(),
                 TextEntry::make('due_at')->date(),
                 TextEntry::make('paid_at')->dateTime()->placeholder('—'),
@@ -174,6 +187,7 @@ class InvoiceResource extends Resource
             ->toolbarActions([
                 BulkActionGroup::make([
                     InvoiceActions::mergeBulkAction(),
+                    InvoiceActions::emailBundleBulkAction(),
                 ]),
             ]);
     }

@@ -16,7 +16,7 @@ class Invoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'reference', 'token', 'user_id', 'status', 'currency', 'subtotal', 'discount',
+        'reference', 'token', 'user_id', 'billing_profile_id', 'status', 'currency', 'subtotal', 'discount',
         'total', 'amount_paid', 'due_at', 'paid_at', 'last_reminded_at',
         'notes', 'meta',
     ];
@@ -55,6 +55,61 @@ class Invoice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function billingProfile(): BelongsTo
+    {
+        return $this->belongsTo(BillingProfile::class);
+    }
+
+    /**
+     * The "Invoiced To" identity: the selected billing profile's company
+     * and address, falling back to the client's own details.
+     *
+     * @return array{company: ?string, name: string, address: ?string, city_line: ?string, email: ?string}
+     */
+    public function billedTo(): array
+    {
+        $profile = $this->billingProfile;
+        $user = $this->user;
+
+        if ($profile !== null) {
+            return [
+                'company' => $profile->company_name,
+                'name' => $profile->contact_name ?: $user->name,
+                'address' => $profile->address,
+                'city_line' => trim(implode(', ', array_filter([
+                    trim(($profile->city ?? '').' '.($profile->postal_code ?? '')),
+                    $profile->country,
+                ]))) ?: null,
+                'email' => $profile->email ?: $user->email,
+            ];
+        }
+
+        return [
+            'company' => $user->company_name,
+            'name' => $user->name,
+            'address' => $user->address,
+            'city_line' => trim(implode(', ', array_filter([
+                trim(($user->city ?? '').' '.($user->postal_code ?? '')),
+                $user->country,
+            ]))) ?: null,
+            'email' => $user->email,
+        ];
+    }
+
+    /**
+     * Everyone this invoice's emails go to: the client's billing inboxes
+     * plus the billing profile's own email when it has one.
+     *
+     * @return array<int, string>
+     */
+    public function recipients(): array
+    {
+        return array_values(array_unique(array_filter([
+            ...$this->user->billingEmails(),
+            $this->billingProfile?->email,
+        ])));
     }
 
     public function items(): HasMany

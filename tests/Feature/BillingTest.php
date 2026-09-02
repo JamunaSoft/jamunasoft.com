@@ -349,9 +349,10 @@ class BillingTest extends TestCase
             ]);
         }
 
-        $invoice = app(RecurringBillingService::class)->invoiceAllServicesFor($user);
+        $invoices = app(RecurringBillingService::class)->invoiceAllServicesFor($user);
 
-        $this->assertNotNull($invoice);
+        $this->assertCount(1, $invoices, 'Same billing profile — one consolidated invoice.');
+        $invoice = $invoices->first();
         $this->assertCount(2, $invoice->items);
         $this->assertSame('6000.00', (string) $invoice->total);
         Mail::assertNothingQueued();
@@ -366,7 +367,8 @@ class BillingTest extends TestCase
             $hostingItem->description,
         );
 
-        $this->assertNull(
+        $this->assertCount(
+            0,
             app(RecurringBillingService::class)->invoiceAllServicesFor($user),
             'Services already on an open invoice must not be billed again.',
         );

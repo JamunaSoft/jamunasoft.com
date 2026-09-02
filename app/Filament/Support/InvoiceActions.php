@@ -134,6 +134,40 @@ class InvoiceActions
         ];
     }
 
+    public static function emailBundleBulkAction(): BulkAction
+    {
+        return BulkAction::make('emailTogether')
+            ->label('Email together')
+            ->icon(Heroicon::OutlinedEnvelopeOpen)
+            ->requiresConfirmation()
+            ->modalHeading('Email invoices together')
+            ->modalDescription('Send the selected unpaid invoices of one client in a SINGLE email — every PDF attached, each with its own pay link.')
+            ->deselectRecordsAfterCompletion()
+            ->action(function (Collection $records) {
+                $records = $records->values();
+
+                if ($records->pluck('user_id')->unique()->count() > 1) {
+                    Notification::make()->title('Only invoices of the same client can be emailed together.')->danger()->send();
+
+                    return;
+                }
+
+                if ($records->contains(fn (Invoice $invoice) => $invoice->status !== InvoiceStatus::Unpaid)) {
+                    Notification::make()->title('Only unpaid invoices can be emailed together.')->danger()->send();
+
+                    return;
+                }
+
+                app(InvoiceService::class)->sendBundle($records);
+
+                Notification::make()
+                    ->title($records->count().' invoices emailed in one message')
+                    ->body('Sent to '.implode(', ', $records->first()->recipients()).' with all PDFs attached.')
+                    ->success()
+                    ->send();
+            });
+    }
+
     public static function mergeBulkAction(): BulkAction
     {
         return BulkAction::make('merge')

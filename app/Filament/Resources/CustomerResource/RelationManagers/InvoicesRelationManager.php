@@ -13,6 +13,7 @@ use Filament\Actions\CreateAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -39,6 +40,11 @@ class InvoicesRelationManager extends RelationManager
     public function form(Schema $schema): Schema
     {
         return $schema->components([
+            Select::make('billing_profile_id')
+                ->label('Billing profile')
+                ->options(fn () => $this->getOwnerRecord()->billingProfiles()->pluck('company_name', 'id'))
+                ->placeholder('Default (client\'s own details)')
+                ->visible(fn () => $this->getOwnerRecord()->billingProfiles()->exists()),
             DatePicker::make('due_at')
                 ->label('Due date')
                 ->default(now()->addDays(7))
@@ -113,6 +119,7 @@ class InvoicesRelationManager extends RelationManager
             ->toolbarActions([
                 BulkActionGroup::make([
                     InvoiceActions::mergeBulkAction(),
+                    InvoiceActions::emailBundleBulkAction(),
                 ]),
             ]);
     }
