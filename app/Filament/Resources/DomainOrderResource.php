@@ -11,6 +11,7 @@ use App\Models\DomainOrder;
 use App\Models\User;
 use App\Services\DomainOrderService;
 use BackedEnum;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
@@ -21,6 +22,7 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -70,10 +72,26 @@ class DomainOrderResource extends Resource
                 TextInput::make('customer_phone'),
                 Select::make('user_id')
                     ->label('Panel customer')
-                    ->relationship('user', 'name')
+                    ->relationship('user', 'name', fn (Builder $query) => $query->whereDoesntHave('roles'))
                     ->getOptionLabelFromRecordUsing(fn (User $record) => $record->selectLabel())
                     ->searchable(['name', 'email', 'company_name'])
                     ->preload()
+                    ->live()
+                    ->afterStateUpdated(function (?int $state, Set $set): void {
+                        if ($state === null) {
+                            return;
+                        }
+
+                        $customer = User::query()->find($state);
+
+                        if ($customer === null) {
+                            return;
+                        }
+
+                        $set('customer_name', $customer->name);
+                        $set('customer_email', $customer->email);
+                        $set('customer_phone', $customer->phone);
+                    })
                     ->placeholder('None yet'),
                 Select::make('years')
                     ->options(array_combine(range(1, 5), range(1, 5)))
