@@ -172,6 +172,75 @@ class DomainOrderTest extends TestCase
             && $request['contacts']['registrant'] === 'CONTACT123');
     }
 
+    public function test_payment_confirmation_starts_resellcube_to_spaceship_transfer(): void
+    {
+        $this->fillRegistrantSettings();
+        Mail::fake();
+        config([
+            'services.resellcube.user_id' => 'reseller',
+            'services.resellcube.api_key' => 'secret',
+            'services.resellcube.base_url' => 'https://resellcube.test/api',
+        ]);
+
+        $user = User::factory()->create();
+        Domain::create([
+            'name' => 'mytestshop.com',
+            'registrar' => 'resellcube',
+            'user_id' => $user->id,
+            'meta' => ['domsecret' => 'SOURCE-EPP-123'],
+        ]);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), 'resellcube.test')) {
+                if (str_contains($request->url(), '/orderid.json')) {
+                    return Http::response('456');
+                }
+
+                return Http::response([]);
+            }
+
+            if (str_contains($request->url(), '/async-operations/')) {
+                return Http::response(['status' => 'success']);
+            }
+
+            if (str_ends_with($request->url(), '/domains/mytestshop.com/transfer')) {
+                return Http::response([], 202, ['spaceship-async-operationid' => 'TRANSFER123']);
+            }
+
+            if (str_ends_with($request->url(), '/domains/mytestshop.com')) {
+                return Http::response([
+                    'name' => 'mytestshop.com',
+                    'lifecycleStatus' => 'registered',
+                    'verificationStatus' => 'success',
+                    'expirationDate' => '2027-08-20T10:00:00Z',
+                    'nameservers' => ['provider' => 'basic', 'hosts' => []],
+                ]);
+            }
+
+            return Http::response(['detail' => 'Unexpected request: '.$request->method().' '.$request->url()], 500);
+        });
+
+        $order = app(DomainOrderService::class)->create(
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            domainName: 'mytestshop.com',
+            type: DomainOrderType::Transfer,
+        );
+
+        app(DomainOrderService::class)->markPaid($order, 'bkash', 'TRX-TRANSFER');
+
+        $order->refresh();
+
+        $this->assertSame(DomainOrderStatus::Completed, $order->status);
+        $this->assertSame('spaceship', $order->registrar);
+        $this->assertSame('TRANSFER123', $order->spaceship_operation_id);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
+            && $request['authCode'] === 'SOURCE-EPP-123'
+            && (int) $request['years'] === 1);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/domains/modify-lock.json')
+            && str_contains($request->url(), 'order-id=456')
+            && str_contains($request->url(), 'lock-flag=0'));
+    }
+
     public function test_taken_domain_cannot_be_ordered(): void
     {
         Http::fake(['*/available*' => Http::response(['domain' => 'google.com', 'result' => 'taken', 'premiumPricing' => []])]);

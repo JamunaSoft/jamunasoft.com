@@ -50,9 +50,11 @@ class DomainOrderService
 
         // New registrations go through the admin-selected registrar; renewals
         // must use whichever registrar already holds the domain.
-        $registrar = $type === DomainOrderType::Renew
+        $registrar = $type === DomainOrderType::Transfer
+            ? 'spaceship'
+            : ($type === DomainOrderType::Renew
             ? (Domain::query()->where('name', $domainName)->value('registrar') ?? $this->registrars->activeKey())
-            : $this->registrars->activeKey();
+            : $this->registrars->activeKey());
 
         $order = DomainOrder::create([
             'reference' => DomainOrder::generateReference(),
@@ -136,7 +138,7 @@ class DomainOrderService
             $result = match ($order->type) {
                 DomainOrderType::Register => $this->processRegistration($order),
                 DomainOrderType::Renew => $this->processRenewal($order),
-                DomainOrderType::Transfer => throw new RegistrarException('Transfer orders are not automated yet — handle manually.'),
+                DomainOrderType::Transfer => $this->processTransfer($order),
             };
         } catch (RegistrarException $e) {
             $this->fail($order, $e->getMessage());
@@ -239,6 +241,30 @@ class DomainOrderService
     protected function processRenewal(DomainOrder $order): array
     {
         return $this->registrars->for($order->registrar)->renew($order->domain_name, $order->years);
+    }
+
+    /**
+     * Transfers are always inbound to Spaceship. The EPP code may be entered
+     * on the order or read from the synced source domain metadata.
+     *
+     * @return array{operationId: ?string}
+     */
+    protected function processTransfer(DomainOrder $order): array
+    {
+        $domain = Domain::query()->where('name', $order->domain_name)->first();
+        $authCode = trim((string) data_get($order->meta, 'epp_code', data_get($domain?->meta, 'domsecret', '')));
+
+        if ($authCode === '') {
+            throw new RegistrarException("No EPP/Auth code was provided for {$order->domain_name}.");
+        }
+
+        if ($domain?->registrar !== null && $domain->registrar !== 'resellcube') {
+            throw new RegistrarException("{$order->domain_name} is not currently held at ResellCube.");
+        }
+
+        $this->registrars->for('resellcube')->unlockForTransfer($order->domain_name);
+
+        return $this->registrars->for('spaceship')->transfer($order->domain_name, $authCode, $order->years);
     }
 
     /**

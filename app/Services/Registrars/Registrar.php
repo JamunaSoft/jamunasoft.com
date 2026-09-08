@@ -35,6 +35,16 @@ interface Registrar
     public function renew(string $domain, int $years): array;
 
     /**
+     * Transfer a domain into this registrar using its EPP/Auth code.
+     *
+     * @return array{operationId: ?string}
+     */
+    public function transfer(string $domain, string $authCode, int $years): array;
+
+    /** Prepare a domain for transfer out of this registrar. */
+    public function unlockForTransfer(string $domain): void;
+
+    /**
      * Point the domain at the given nameservers.
      *
      * @param  array<int, string>  $hosts

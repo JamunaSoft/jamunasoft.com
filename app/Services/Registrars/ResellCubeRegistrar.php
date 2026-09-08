@@ -67,6 +67,22 @@ class ResellCubeRegistrar implements Registrar
         return ['operationId' => null];
     }
 
+    public function transfer(string $domain, string $authCode, int $years): array
+    {
+        throw new RegistrarException('ResellCube is the source registrar for this transfer and cannot receive the domain.');
+    }
+
+    public function unlockForTransfer(string $domain): void
+    {
+        $orderId = $this->client->orderIdByDomain($domain);
+
+        if ($orderId <= 0) {
+            throw new RegistrarException("Could not resolve the ResellCube order for {$domain}.");
+        }
+
+        $this->client->unlockDomain($orderId);
+    }
+
     public function syncDomain(string $domain): Domain
     {
         $details = $this->client->orderDetails($this->client->orderIdByDomain($domain));

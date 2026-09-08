@@ -61,6 +61,18 @@ class SpaceshipRegistrar implements Registrar
         return ['operationId' => $result['operationId']];
     }
 
+    public function transfer(string $domain, string $authCode, int $years): array
+    {
+        $result = $this->client->transferDomain($domain, $authCode, $years);
+
+        return ['operationId' => $result['operationId']];
+    }
+
+    public function unlockForTransfer(string $domain): void
+    {
+        // Spaceship is the receiving registrar in the current transfer flow.
+    }
+
     public function updateNameservers(string $domain, array $hosts): void
     {
         $this->client->updateNameservers($domain, $hosts);

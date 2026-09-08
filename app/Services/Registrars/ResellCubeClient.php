@@ -155,6 +155,14 @@ class ResellCubeClient
         ]);
     }
 
+    public function unlockDomain(int $orderId): void
+    {
+        $this->call('POST', '/domains/modify-lock.json', [
+            'order-id' => $orderId,
+            'lock-flag' => 0,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $params
      */

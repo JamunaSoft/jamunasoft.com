@@ -141,6 +141,21 @@ class SpaceshipClient
     }
 
     /**
+     * Request an inbound domain transfer. Transfers are asynchronous.
+     *
+     * @return array{operationId: ?string, data: array<string, mixed>}
+     */
+    public function transferDomain(string $domain, string $authCode, int $years = 1): array
+    {
+        $response = $this->send('POST', "/domains/{$domain}/transfer", [
+            'authCode' => $authCode,
+            'years' => $years,
+        ]);
+
+        return $this->asyncResult($response);
+    }
+
+    /**
      * @param  array<int, string>  $hosts
      */
     public function updateNameservers(string $domain, array $hosts, string $provider = 'custom'): void

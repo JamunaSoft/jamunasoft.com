@@ -15,6 +15,7 @@ use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -82,6 +83,11 @@ class DomainOrderResource extends Resource
                     ->numeric()
                     ->prefix('৳')
                     ->helperText('Leave empty to price automatically from the TLD table.'),
+                TextInput::make('meta.epp_code')
+                    ->label('EPP / Auth code')
+                    ->visible(fn (Get $get): bool => $get('type') === DomainOrderType::Transfer)
+                    ->dehydrated(fn (Get $get): bool => $get('type') === DomainOrderType::Transfer)
+                    ->columnSpanFull(),
             ]),
         ]);
     }
