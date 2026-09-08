@@ -236,9 +236,6 @@ class DomainOrderTest extends TestCase
         Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
             && $request['authCode'] === 'SOURCE-EPP-123'
             && (int) $request['years'] === 1);
-        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/domains/modify-lock.json')
-            && str_contains($request->url(), 'order-id=456')
-            && str_contains($request->url(), 'lock-flag=0'));
     }
 
     public function test_taken_domain_cannot_be_ordered(): void

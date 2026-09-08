@@ -262,8 +262,9 @@ class DomainOrderService
             throw new RegistrarException("{$order->domain_name} is not currently held at ResellCube.");
         }
 
-        $this->registrars->for('resellcube')->unlockForTransfer($order->domain_name);
-
+        // ResellCube's lock endpoint is not available on every account/API
+        // plan. Unlock the domain in ResellCube before confirming payment;
+        // the receiving registrar will reject locked domains explicitly.
         return $this->registrars->for('spaceship')->transfer($order->domain_name, $authCode, $order->years);
     }
 
