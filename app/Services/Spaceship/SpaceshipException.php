@@ -24,7 +24,14 @@ class SpaceshipException extends RegistrarException
 
         $message = data_get($body, 'detail')
             ?? data_get($body, 'title')
+            ?? data_get($body, 'message')
             ?? 'Spaceship API request failed with HTTP '.$response->status().'.';
+
+        $errors = data_get($body, 'errors', data_get($body, 'data'));
+
+        if (is_array($errors) && $errors !== []) {
+            $message .= ' '.json_encode($errors);
+        }
 
         return new self($message, $response->status(), data_get($body, 'data'));
     }

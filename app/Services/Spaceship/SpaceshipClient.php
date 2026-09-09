@@ -145,11 +145,19 @@ class SpaceshipClient
      *
      * @return array{operationId: ?string, data: array<string, mixed>}
      */
-    public function transferDomain(string $domain, string $authCode, int $years = 1): array
+    public function transferDomain(
+        string $domain,
+        string $authCode,
+        array $contacts,
+        int $years = 1,
+        bool $autoRenew = false,
+    ): array
     {
         $response = $this->send('POST', "/domains/{$domain}/transfer", [
             'authCode' => $authCode,
             'years' => $years,
+            'autoRenew' => $autoRenew,
+            'contacts' => $contacts,
         ]);
 
         return $this->asyncResult($response);

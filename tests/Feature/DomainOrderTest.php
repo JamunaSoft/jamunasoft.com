@@ -199,6 +199,10 @@ class DomainOrderTest extends TestCase
                 return Http::response([]);
             }
 
+            if (str_contains($request->url(), '/contacts')) {
+                return Http::response(['contactId' => 'CONTACT123']);
+            }
+
             if (str_contains($request->url(), '/async-operations/')) {
                 return Http::response(['status' => 'success']);
             }
@@ -235,6 +239,8 @@ class DomainOrderTest extends TestCase
         $this->assertSame('TRANSFER123', $order->spaceship_operation_id);
         Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
             && $request['authCode'] === 'SOURCE-EPP-123'
+            && $request['autoRenew'] === false
+            && $request['contacts']['registrant'] === 'CONTACT123'
             && (int) $request['years'] === 1);
     }
 

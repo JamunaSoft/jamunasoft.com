@@ -63,7 +63,13 @@ class SpaceshipRegistrar implements Registrar
 
     public function transfer(string $domain, string $authCode, int $years): array
     {
-        $result = $this->client->transferDomain($domain, $authCode, $years);
+        $contactId = $this->contacts->contactId();
+        $result = $this->client->transferDomain($domain, $authCode, [
+            'registrant' => $contactId,
+            'admin' => $contactId,
+            'tech' => $contactId,
+            'billing' => $contactId,
+        ], years: $years);
 
         return ['operationId' => $result['operationId']];
     }
