@@ -37,5 +37,5 @@ step "Restarting queue workers (picks up the new code)"
 php artisan queue:restart
 
 step "Done"
-git log --oneline -1
+git --no-pager log --oneline -1
 echo "Deployed successfully. Site is back up."
