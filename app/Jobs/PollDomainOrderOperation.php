@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\DomainOrderStatus;
+use App\Enums\DomainOrderType;
 use App\Models\DomainOrder;
 use App\Services\DomainOrderService;
 use App\Services\Spaceship\SpaceshipClient;
@@ -31,6 +32,12 @@ class PollDomainOrderOperation implements ShouldQueue
         $this->order->refresh();
 
         if ($this->order->status !== DomainOrderStatus::Processing) {
+            return;
+        }
+
+        if ($this->order->type === DomainOrderType::Transfer && $this->order->registrar === 'spaceship') {
+            PollDomainTransfer::dispatch($this->order);
+
             return;
         }
 

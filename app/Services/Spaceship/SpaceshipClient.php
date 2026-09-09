@@ -165,6 +165,11 @@ class SpaceshipClient
         return $this->asyncResult($response);
     }
 
+    public function getTransfer(string $domain): array
+    {
+        return $this->send('GET', "/domains/{$domain}/transfer")->json();
+    }
+
     /**
      * @param  array<int, string>  $hosts
      */

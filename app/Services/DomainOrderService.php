@@ -9,6 +9,7 @@ use App\Jobs\ProcessDomainOrder;
 use App\Mail\DomainOrderAdminNotification;
 use App\Mail\DomainOrderCompleted;
 use App\Mail\DomainOrderConfirmation;
+use App\Mail\DomainTransferStarted;
 use App\Models\Domain;
 use App\Models\DomainOrder;
 use App\Models\Tld;
@@ -16,6 +17,7 @@ use App\Models\User;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -132,7 +134,7 @@ class DomainOrderService
      */
     public function process(DomainOrder $order): void
     {
-        $order->update(['status' => DomainOrderStatus::Processing]);
+        $order->update(['status' => DomainOrderStatus::Processing, 'error_message' => null]);
 
         try {
             $result = match ($order->type) {
@@ -205,6 +207,25 @@ class DomainOrderService
         }
     }
 
+    public function notifyTransferStarted(DomainOrder $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $locked = DomainOrder::query()->lockForUpdate()->findOrFail($order->id);
+            if (data_get($locked->meta, 'transfer_started_notified_at')) {
+                return;
+            }
+
+            Mail::to($locked->customer_email)->queue((new DomainTransferStarted($locked))->afterCommit());
+            $locked->update([
+                'error_message' => null,
+                'meta' => array_merge($locked->meta ?? [], [
+                    'transfer_started_notified_at' => now()->toIso8601String(),
+                ]),
+            ]);
+        });
+        $order->refresh();
+    }
+
     public function fail(DomainOrder $order, string $message): void
     {
         $order->update([
@@ -252,6 +273,9 @@ class DomainOrderService
     protected function processTransfer(DomainOrder $order): array
     {
         $domain = Domain::query()->where('name', $order->domain_name)->first();
+        if (! array_key_exists('source_registrar', $order->meta ?? [])) {
+            $order->update(['meta' => array_merge($order->meta ?? [], ['source_registrar' => $domain?->registrar])]);
+        }
         $authCode = trim((string) data_get($order->meta, 'epp_code', data_get($domain?->meta, 'domsecret', '')));
 
         if ($authCode === '') {

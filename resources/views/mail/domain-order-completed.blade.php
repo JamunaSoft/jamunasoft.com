@@ -7,6 +7,8 @@ Your domain **{{ $order->domain_name }}** is now active.
 
 @if ($order->type->value === 'register')
 The domain has been registered for {{ $order->years }} {{ str('year')->plural($order->years) }}. If you need DNS changes or want the domain pointed at your website or email, just reply to this email and our team will take care of it.
+@elseif ($order->type->value === 'transfer' && data_get($order->meta, 'source_registrar') !== 'resellcube')
+Your domain transfer has been completed successfully.
 @else
 The renewal for {{ $order->years }} {{ str('year')->plural($order->years) }} has been applied.
 @endif

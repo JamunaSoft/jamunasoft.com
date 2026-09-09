@@ -4,8 +4,10 @@ namespace Tests\Feature;
 
 use App\Enums\DomainOrderStatus;
 use App\Enums\DomainOrderType;
+use App\Jobs\PollDomainTransfer;
 use App\Mail\DomainOrderCompleted;
 use App\Mail\DomainOrderConfirmation;
+use App\Mail\DomainTransferStarted;
 use App\Models\Domain;
 use App\Models\DomainOrder;
 use App\Models\Tld;
@@ -13,6 +15,7 @@ use App\Models\User;
 use App\Services\DomainOrderService;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\SpaceshipRegistrar;
+use App\Services\Spaceship\SpaceshipClient;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -216,6 +219,10 @@ class DomainOrderTest extends TestCase
                 return Http::response(['status' => 'success']);
             }
 
+            if (str_ends_with($request->url(), '/domains/mytestshop.com/transfer') && $request->method() === 'GET') {
+                return Http::response(['direction' => 'in', 'status' => 'completed', 'finishedAt' => '2026-08-20T10:00:00Z']);
+            }
+
             if (str_ends_with($request->url(), '/domains/mytestshop.com/transfer')) {
                 return Http::response([], 202, ['spaceship-async-operationid' => 'TRANSFER123']);
             }
@@ -251,7 +258,7 @@ class DomainOrderTest extends TestCase
             && $request['lastName'] === 'Owner'
             && $request['email'] === 'owner@example.com'
             && $request['phone'] === '+880.1712345678');
-        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
+        Http::assertSent(fn (Request $request) => $request->method() === 'POST' && str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
             && $request['authCode'] === 'SOURCE-EPP-123'
             && $request['autoRenew'] === false
             && $request['contacts']['registrant'] === 'CONTACT123'
@@ -272,6 +279,71 @@ class DomainOrderTest extends TestCase
             $this->assertStringContainsString('Domain owner contact', $e->getMessage());
             Http::assertNothingSent();
         }
+    }
+
+    public function test_accepted_transfer_stays_processing_and_sends_started_email_once(): void
+    {
+        Mail::fake();
+        Http::fake([
+            '*/async-operations/*' => Http::response(['status' => 'success']),
+            '*/transfer' => Http::response(['direction' => 'in', 'status' => 'pending', 'finishedAt' => null]),
+        ]);
+        $order = $this->processingTransfer();
+        $job = new PollDomainTransfer($order);
+        $job->handle(app(DomainOrderService::class), app(SpaceshipClient::class));
+        $job->handle(app(DomainOrderService::class), app(SpaceshipClient::class));
+        $this->assertSame(DomainOrderStatus::Processing, $order->fresh()->status);
+        Mail::assertQueued(DomainTransferStarted::class, 1);
+        Mail::assertNotQueued(DomainOrderCompleted::class);
+        Http::assertNotSent(fn (Request $r) => $r->method() === 'POST');
+    }
+
+    public function test_transfer_lookup_failure_and_exhaustion_do_not_enable_retry(): void
+    {
+        Mail::fake();
+        Http::fake(['*' => Http::response(['detail' => 'Unavailable'], 403)]);
+        $order = $this->processingTransfer();
+        $job = new PollDomainTransfer($order);
+        $job->handle(app(DomainOrderService::class), app(SpaceshipClient::class));
+        $this->assertSame(DomainOrderStatus::Processing, $order->fresh()->status);
+        $job->failed(new \RuntimeException('Attempts exhausted'));
+        $this->assertSame(DomainOrderStatus::Processing, $order->fresh()->status);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_registrar_rejected_transfer_is_failed_without_completion_email(): void
+    {
+        Mail::fake();
+        Http::fake([
+            '*/async-operations/*' => Http::response(['status' => 'success']),
+            '*/transfer' => Http::response(['direction' => 'in', 'status' => 'failed', 'finishedAt' => now()->toIso8601String()]),
+        ]);
+        $order = $this->processingTransfer();
+        (new PollDomainTransfer($order))->handle(app(DomainOrderService::class), app(SpaceshipClient::class));
+        $this->assertSame(DomainOrderStatus::Failed, $order->fresh()->status);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_completion_wording_depends_on_transfer_source(): void
+    {
+        $order = $this->processingTransfer();
+        $order->meta = ['source_registrar' => 'resellcube'];
+        $this->assertStringContainsString('The renewal for', (new DomainOrderCompleted($order))->render());
+        $order->meta = ['source_registrar' => 'other'];
+        $html = (new DomainOrderCompleted($order))->render();
+        $this->assertStringContainsString('transfer has been completed', $html);
+        $this->assertStringNotContainsString('The renewal for', $html);
+    }
+
+    private function processingTransfer(): DomainOrder
+    {
+        return DomainOrder::create([
+            'reference' => DomainOrder::generateReference(),
+            'domain_name' => 'pending-transfer.com', 'registrar' => 'spaceship',
+            'customer_name' => 'Domain Owner', 'customer_email' => 'owner@example.com',
+            'type' => DomainOrderType::Transfer, 'years' => 1, 'amount' => 1600,
+            'status' => DomainOrderStatus::Processing, 'spaceship_operation_id' => 'TRANSFER123',
+        ]);
     }
 
     public function test_taken_domain_cannot_be_ordered(): void
