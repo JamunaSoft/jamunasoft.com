@@ -11,6 +11,8 @@ use App\Models\DomainOrder;
 use App\Models\Tld;
 use App\Models\User;
 use App\Services\DomainOrderService;
+use App\Services\Registrars\RegistrarException;
+use App\Services\Registrars\SpaceshipRegistrar;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -174,7 +176,6 @@ class DomainOrderTest extends TestCase
 
     public function test_payment_confirmation_starts_resellcube_to_spaceship_transfer(): void
     {
-        $this->fillRegistrantSettings();
         Mail::fake();
         config([
             'services.resellcube.user_id' => 'reseller',
@@ -187,7 +188,15 @@ class DomainOrderTest extends TestCase
             'name' => 'mytestshop.com',
             'registrar' => 'resellcube',
             'user_id' => $user->id,
-            'meta' => ['domsecret' => 'SOURCE-EPP-123'],
+            'meta' => [
+                'domsecret' => 'SOURCE-EPP-123',
+                'registrantcontact' => [
+                    'name' => 'Domain Owner', 'emailaddr' => 'owner@example.com',
+                    'address1' => '12 Example Road', 'city' => 'Dhaka',
+                    'zip' => '1229', 'country' => 'BD',
+                    'telnocc' => '880', 'telno' => '1712345678',
+                ],
+            ],
         ]);
 
         Http::fake(function (Request $request) {
@@ -237,11 +246,31 @@ class DomainOrderTest extends TestCase
         $this->assertSame(DomainOrderStatus::Completed, $order->status);
         $this->assertSame('spaceship', $order->registrar);
         $this->assertSame('TRANSFER123', $order->spaceship_operation_id);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/contacts')
+            && $request['firstName'] === 'Domain'
+            && $request['lastName'] === 'Owner'
+            && $request['email'] === 'owner@example.com'
+            && $request['phone'] === '+880.1712345678');
         Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/mytestshop.com/transfer')
             && $request['authCode'] === 'SOURCE-EPP-123'
             && $request['autoRenew'] === false
             && $request['contacts']['registrant'] === 'CONTACT123'
             && (int) $request['years'] === 1);
+    }
+
+    public function test_transfer_with_missing_owner_contact_does_not_use_default_contact(): void
+    {
+        $this->fillRegistrantSettings();
+        Http::fake();
+        Domain::create(['name' => 'missing-owner.com', 'registrar' => 'resellcube']);
+
+        try {
+            app(SpaceshipRegistrar::class)->transfer('missing-owner.com', 'EPP', 1);
+            $this->fail('Expected missing owner contact to stop the transfer.');
+        } catch (RegistrarException $e) {
+            $this->assertStringContainsString('Domain owner contact', $e->getMessage());
+            Http::assertNothingSent();
+        }
     }
 
     public function test_taken_domain_cannot_be_ordered(): void
