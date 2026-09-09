@@ -151,12 +151,14 @@ class SpaceshipClient
         array $contacts,
         int $years = 1,
         bool $autoRenew = false,
-    ): array
-    {
+    ): array {
         $response = $this->send('POST', "/domains/{$domain}/transfer", [
             'authCode' => $authCode,
-            'years' => $years,
             'autoRenew' => $autoRenew,
+            'privacyProtection' => [
+                'level' => 'high',
+                'userConsent' => true,
+            ],
             'contacts' => $contacts,
         ]);
 

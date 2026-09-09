@@ -255,7 +255,8 @@ class DomainOrderTest extends TestCase
             && $request['authCode'] === 'SOURCE-EPP-123'
             && $request['autoRenew'] === false
             && $request['contacts']['registrant'] === 'CONTACT123'
-            && (int) $request['years'] === 1);
+            && $request['privacyProtection'] === ['level' => 'high', 'userConsent' => true]
+            && ! array_key_exists('years', $request->data()));
     }
 
     public function test_transfer_with_missing_owner_contact_does_not_use_default_contact(): void
