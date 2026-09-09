@@ -12,14 +12,15 @@
     @endphp
 
     {{-- Hero --}}
-    <section class="relative overflow-hidden bg-navy-950">
+    <section class="home-hero relative overflow-hidden bg-navy-950">
         <div class="absolute inset-0" aria-hidden="true">
             <div class="absolute -top-40 -right-40 h-[32rem] w-[32rem] rounded-full bg-brand-600/30 blur-3xl"></div>
             <div class="absolute -bottom-40 -left-40 h-[32rem] w-[32rem] rounded-full bg-accent-500/20 blur-3xl"></div>
         </div>
-        <div class="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-28">
-            <div>
-                <h1 class="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-[3.4rem] lg:leading-[1.1]">
+        <div class="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-12 sm:px-6 sm:py-16 lg:grid-cols-2 lg:px-8 lg:py-24">
+            <div class="hero-copy">
+                <p class="hero-eyebrow"><span aria-hidden="true"></span>{{ settings_t('hero_eyebrow', __('YOUR NEXT CHAPTER, BUILT BETTER')) }}</p>
+                <h1 class="hero-title font-bold tracking-tight text-white">
                     {{ settings_t('hero_heading', __('Software, websites & digital growth for your business')) }}
                 </h1>
                 <p class="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
@@ -41,11 +42,11 @@
                     </ul>
                 @endif
             </div>
-            <div class="relative hidden lg:block">
+            <div class="relative min-w-0">
                 @if ($heroImageUrl)
-                    <img src="{{ $heroImageUrl }}" alt="" class="w-full rounded-2xl shadow-2xl shadow-navy-900/50" />
+                    <img src="{{ $heroImageUrl }}" alt="" fetchpriority="high" decoding="async" class="w-full rounded-2xl shadow-2xl shadow-navy-900/50" />
                 @else
-                    <x-placeholder-image class="aspect-[4/3] w-full rounded-2xl shadow-2xl shadow-navy-900/50" :label="settings('company_name', 'Jamuna Soft')" />
+                    @include('partials.hero-workspace')
                 @endif
             </div>
         </div>
@@ -57,7 +58,7 @@
     {{-- Stats --}}
     @if (is_array($stats) && $stats)
         <section class="border-b border-slate-100 bg-white">
-            <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 py-12 sm:px-6 md:grid-cols-4 lg:px-8">
+            <div class="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:grid-cols-6 lg:px-8">
                 @foreach ($stats as $stat)
                     @if (is_array($stat))
                         <x-stat :value="$stat['value'] ?? ''" :label="$stat['label'] ?? ''" />
@@ -68,11 +69,11 @@
     @endif
 
     {{-- Services --}}
-    <section class="bg-slate-50 py-20">
+    <section class="home-section bg-slate-50 py-16 lg:py-20">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-section-heading
                 :eyebrow="__('What we do')"
-                :title="__('Our Services')"
+                :title="__('The right expertise. All in one place.')"
                 :subtitle="__('End-to-end digital services — from idea to launch and beyond.')"
                 centered
             />
@@ -95,7 +96,7 @@
 
     {{-- Solutions --}}
     @if ($solutions->isNotEmpty())
-        <section class="bg-white py-20">
+        <section class="home-section bg-white py-16 lg:py-20">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <x-section-heading
                     :eyebrow="__('Industries')"
@@ -121,11 +122,11 @@
     @endif
 
     {{-- Portfolio --}}
-    <section class="bg-slate-50 py-20">
+    <section class="home-section bg-slate-50 py-16 lg:py-20">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-section-heading
                 :eyebrow="__('Our work')"
-                :title="__('Featured Projects')"
+                :title="__('Ideas brought to life.')"
                 :subtitle="__('A selection of projects we are proud of.')"
                 centered
             />
@@ -146,7 +147,7 @@
 
     {{-- Why us --}}
     @if (is_array($whyUs) && $whyUs)
-        <section class="bg-white py-20">
+        <section class="home-section bg-white py-16 lg:py-20">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <x-section-heading
                     :eyebrow="__('Why Jamuna Soft')"
@@ -196,7 +197,7 @@
     @endif
 
     {{-- Packages --}}
-    <section class="bg-slate-50 py-20">
+    <section class="home-section bg-slate-50 py-16 lg:py-20">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <x-section-heading
                 :eyebrow="__('Pricing')"
@@ -228,7 +229,7 @@
 
     {{-- Testimonials --}}
     @if ($testimonials->isNotEmpty())
-        <section class="bg-white py-20">
+        <section class="home-section bg-white py-16 lg:py-20">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <x-section-heading
                     :eyebrow="__('Testimonials')"
@@ -246,7 +247,7 @@
 
     {{-- Blog --}}
     @if ($posts->isNotEmpty())
-        <section class="bg-slate-50 py-20">
+        <section class="home-section bg-slate-50 py-16 lg:py-20">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <x-section-heading
                     :eyebrow="__('Insights')"
@@ -267,7 +268,7 @@
 
     {{-- FAQ --}}
     @if ($faqs->isNotEmpty())
-        <section class="bg-white py-20">
+        <section class="home-section bg-white py-16 lg:py-20">
             <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
                 <x-section-heading
                     :eyebrow="__('FAQ')"

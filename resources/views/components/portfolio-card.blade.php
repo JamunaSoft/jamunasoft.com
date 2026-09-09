@@ -4,7 +4,7 @@
     $image = $portfolio->getFirstMediaUrl('featured', 'card');
 @endphp
 
-<article {{ $attributes->merge(['class' => 'group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-lg']) }}>
+<article {{ $attributes->merge(['class' => 'site-card group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-lg']) }}>
     @if ($image)
         <img src="{{ $image }}" alt="{{ $portfolio->t('title') }}" loading="lazy" class="h-52 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
     @else
@@ -27,7 +27,7 @@
             @endif
         </div>
         <h3 class="mt-3 text-lg font-bold text-navy-900">
-            <a href="{{ route('portfolio.show', $portfolio) }}" class="focus-visible:outline-none">
+            <a href="{{ route('portfolio.show', $portfolio) }}" class="">
                 <span class="absolute inset-0" aria-hidden="true"></span>
                 {{ $portfolio->t('title') }}
             </a>

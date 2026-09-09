@@ -21,7 +21,7 @@ class ListDomainOrders extends ListRecords
             CreateAction::make()
                 ->using(function (array $data): DomainOrder {
                     try {
-                        return app(DomainOrderService::class)->create(
+                        $order = app(DomainOrderService::class)->create(
                             customer: [
                                 'name' => $data['customer_name'],
                                 'email' => $data['customer_email'],
@@ -33,6 +33,11 @@ class ListDomainOrders extends ListRecords
                             years: (int) $data['years'],
                             amount: filled($data['amount'] ?? null) ? (float) $data['amount'] : null,
                         );
+                        if ($order->type === DomainOrderType::Transfer && filled(data_get($data, 'meta.epp_code'))) {
+                            $order->update(['meta' => array_merge($order->meta ?? [], ['epp_code' => data_get($data, 'meta.epp_code')])]);
+                        }
+
+                        return $order;
                     } catch (\InvalidArgumentException $e) {
                         Notification::make()->title($e->getMessage())->danger()->send();
 

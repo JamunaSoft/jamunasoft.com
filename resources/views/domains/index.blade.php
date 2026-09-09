@@ -130,7 +130,7 @@
             @if ($tlds->isNotEmpty())
                 <div class="mt-8 rounded-2xl border border-slate-200 bg-white p-7 lg:p-9">
                     <h2 class="text-lg font-bold text-navy-900">{{ __('Domain Prices') }}</h2>
-                    <div class="mt-4 overflow-x-auto">
+                    <div class="mt-4 overflow-x-auto" tabindex="0" role="region" aria-label="{{ __('Domain pricing') }}">
                         <table class="w-full text-left text-sm">
                             <thead>
                                 <tr class="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">

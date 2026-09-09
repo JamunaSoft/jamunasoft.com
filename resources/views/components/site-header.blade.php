@@ -3,7 +3,7 @@
     $logoUrl = $logoPath ? \Illuminate\Support\Facades\Storage::disk('public')->url($logoPath) : null;
     $companyName = settings_t('company_name', 'Jamuna Soft');
     $whatsappDigits = preg_replace('/\D+/', '', (string) settings('whatsapp_number', ''));
-    $portalUrl = settings('client_portal_url');
+    $portalUrl = settings('client_portal_url') ?: url('/client');
     $ctaLabel = settings_t('header_cta_label');
     $ctaUrl = settings('header_cta_url');
     $currentLocale = app()->getLocale();
@@ -12,10 +12,11 @@
 <header
     x-data="{ open: false, scrolled: false }"
     @scroll.window.passive="scrolled = window.scrollY > 8"
+    @resize.window.debounce="if (window.innerWidth >= 1280) open = false"
     :class="scrolled ? 'shadow-md shadow-navy-900/5' : ''"
     class="sticky top-0 z-40 bg-white/95 backdrop-blur transition-shadow"
 >
-    <div class="mx-auto flex h-18 max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6 lg:px-8">
+    <div class="mx-auto flex h-18 max-w-7xl items-center justify-between gap-6 px-4 py-3 sm:px-6 xl:px-8">
         {{-- Logo --}}
         <a href="{{ route('home') }}" class="flex shrink-0 items-center gap-2" aria-label="{{ $companyName }} — {{ __('Home') }}">
             @if ($logoUrl)
@@ -27,14 +28,14 @@
         </a>
 
         {{-- Desktop nav --}}
-        <nav class="hidden lg:block" aria-label="{{ __('Main navigation') }}">
+        <nav class="hidden xl:block" aria-label="{{ __('Main navigation') }}">
             <ul class="flex items-center gap-1">
                 @foreach ($items as $item)
-                    <li class="relative" @if ($item['children']) x-data="{ sub: false }" @mouseenter="sub = true" @mouseleave="sub = false" @endif>
+                    <li class="relative" @if ($item['children']) x-data="{ sub: false }" @mouseenter="sub = true" @mouseleave="sub = false" @focusin="sub = true" @focusout="if (!$el.contains($event.relatedTarget)) sub = false" @keydown.escape.stop="sub = false" @endif>
                         <a
                             href="{{ $item['url'] }}"
-                            @if ($item['target']) target="{{ $item['target'] }}" @endif
-                            class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium {{ url()->current() === url($item['url']) ? 'text-brand-700' : 'text-slate-700 hover:text-brand-700' }}"
+                            @if ($item['target']) target="{{ $item['target'] }}" rel="noopener noreferrer" @endif
+                            class="inline-flex whitespace-nowrap items-center gap-1 rounded-lg px-2 py-2 text-sm font-medium {{ url()->current() === url($item['url']) ? 'text-brand-700' : 'text-slate-700 hover:text-brand-700' }}"
                             @if (url()->current() === url($item['url'])) aria-current="page" @endif
                         >
                             {{ $item['label'] }}
@@ -48,7 +49,7 @@
                             <ul x-show="sub" x-cloak x-transition.opacity.duration.150ms class="absolute left-0 top-full z-50 mt-1 w-56 rounded-2xl border border-slate-100 bg-white p-2 shadow-lg">
                                 @foreach ($item['children'] as $child)
                                     <li>
-                                        <a href="{{ $child['url'] }}" @if ($child['target']) target="{{ $child['target'] }}" @endif class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-700">
+                                        <a href="{{ $child['url'] }}" @if ($child['target']) target="{{ $child['target'] }}" rel="noopener noreferrer" @endif class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-brand-700">
                                             {{ $child['label'] }}
                                         </a>
                                     </li>
@@ -61,7 +62,7 @@
         </nav>
 
         {{-- Actions --}}
-        <div class="hidden items-center gap-3 lg:flex">
+        <div class="hidden shrink-0 items-center gap-3 xl:flex">
             {{-- Language switcher --}}
             <nav aria-label="{{ __('Language') }}" class="flex items-center gap-1 rounded-full border border-slate-200 p-1 text-xs font-semibold">
                 <a href="{{ route('locale.switch', 'en') }}" class="rounded-full px-2.5 py-1 {{ $currentLocale === 'en' ? 'bg-navy-900 text-white' : 'text-slate-600 hover:text-navy-900' }}" @if ($currentLocale === 'en') aria-current="true" @endif>EN</a>
@@ -69,7 +70,7 @@
             </nav>
 
             @if ($portalUrl)
-                <a href="{{ $portalUrl }}" target="_blank" rel="noopener" class="text-sm font-semibold text-slate-600 hover:text-brand-700">{{ __('Client Portal') }}</a>
+                <a href="{{ $portalUrl }}" target="_blank" rel="noopener" class="whitespace-nowrap text-sm font-semibold text-slate-600 hover:text-brand-700">{{ __('Client Portal') }}</a>
             @endif
 
             @if ($whatsappDigits)
@@ -89,7 +90,7 @@
         <button
             type="button"
             @click="open = true"
-            class="inline-flex items-center justify-center rounded-lg p-2 text-navy-900 hover:bg-slate-100 lg:hidden"
+            class="inline-flex items-center justify-center rounded-lg p-2 text-navy-900 hover:bg-slate-100 xl:hidden"
             aria-label="{{ __('Open menu') }}"
             :aria-expanded="open"
             aria-controls="mobile-nav"
@@ -101,7 +102,8 @@
     </div>
 
     {{-- Mobile slide-over --}}
-    <div x-show="open" x-cloak class="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" id="mobile-nav" @keydown.escape.window="open = false">
+    <template x-teleport="body">
+    <div x-show="open" x-cloak x-trap.inert.noscroll="open" class="fixed inset-0 z-50 xl:hidden" role="dialog" aria-label="{{ __('Main navigation') }}" aria-modal="true" id="mobile-nav" @keydown.escape.window="open = false">
         <div x-show="open" x-transition.opacity class="fixed inset-0 bg-navy-950/60" @click="open = false" aria-hidden="true"></div>
         <div
             x-show="open"
@@ -125,7 +127,7 @@
                 <ul class="space-y-1">
                     @foreach ($items as $item)
                         <li>
-                            <a href="{{ $item['url'] }}" @if ($item['target']) target="{{ $item['target'] }}" @endif class="block rounded-xl px-3 py-2.5 text-base font-medium {{ url()->current() === url($item['url']) ? 'bg-brand-50 text-brand-700' : 'text-slate-700 hover:bg-slate-50' }}">
+                            <a href="{{ $item['url'] }}" @if ($item['target']) target="{{ $item['target'] }}" rel="noopener noreferrer" @endif class="block rounded-xl px-3 py-2.5 text-base font-medium {{ url()->current() === url($item['url']) ? 'bg-brand-50 text-brand-700' : 'text-slate-700 hover:bg-slate-50' }}">
                                 {{ $item['label'] }}
                             </a>
                             @if ($item['children'])
@@ -155,4 +157,5 @@
             </div>
         </div>
     </div>
+    </template>
 </header>

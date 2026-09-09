@@ -50,6 +50,8 @@ class HomepageContent extends Page
             ->components([
                 Tabs::make('Content')->tabs([
                     Tab::make('Hero')->schema([
+                        TextInput::make('hero_eyebrow')->label('Hero introduction')->maxLength(80)->placeholder('YOUR NEXT CHAPTER, BUILT BETTER'),
+                        TextInput::make('hero_eyebrow_bn')->label('Hero introduction (Bengali)')->maxLength(100),
                         TextInput::make('hero_heading'),
                         TextInput::make('hero_heading_bn')->label('Hero heading (Bengali)'),
                         Textarea::make('hero_subheading')->rows(2),
@@ -58,7 +60,7 @@ class HomepageContent extends Page
                         TextInput::make('hero_primary_cta_url')->placeholder('/services'),
                         TextInput::make('hero_secondary_cta_label')->placeholder('Get Free Consultation'),
                         TextInput::make('hero_secondary_cta_url')->placeholder('/contact'),
-                        FileUpload::make('hero_image_path')->label('Hero image / dashboard mockup')->image()->disk('public')->directory('homepage')->maxSize(3072),
+                        FileUpload::make('hero_image_path')->label('Hero image')->helperText('Optional. Leave empty to show the interactive service overview.')->image()->disk('public')->directory('homepage')->maxSize(3072),
                         Repeater::make('hero_badges')
                             ->simple(TextInput::make('badge')->required())
                             ->label('Hero badges')

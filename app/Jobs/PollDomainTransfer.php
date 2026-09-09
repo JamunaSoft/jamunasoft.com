@@ -39,7 +39,13 @@ class PollDomainTransfer implements ShouldQueue
             }
             $transfer = $client->getTransfer($this->order->domain_name);
             $status = strtolower((string) data_get($transfer, 'status'));
-            $this->order->update(['error_message' => null]);
+            $this->order->update([
+                'error_message' => null,
+                'meta' => array_merge($this->order->meta ?? [], [
+                    'transfer_status' => $status,
+                    'transfer_checked_at' => now()->toIso8601String(),
+                ]),
+            ]);
 
             if (in_array($status, ['failed', 'cancelled', 'canceled', 'rejected'], true)) {
                 $service->fail($this->order, 'Domain transfer '.$status.'. Check Spaceship before retrying.');

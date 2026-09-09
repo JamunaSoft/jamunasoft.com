@@ -62,15 +62,20 @@
                     </x-alert>
                 @elseif (in_array($order->status->value, ['paid', 'processing'], true))
                     <x-alert type="info" class="mt-6">
-                        {{ __('Payment received — your domain is being set up. This normally takes just a few minutes.') }}
+                        @if ($order->type === \App\Enums\DomainOrderType::Transfer)
+                            {{ __('Payment received. Your domain transfer is being processed and can take several days. Check the domain owner’s inbox for an approval email. We will notify you when it is complete.') }}
+                        @else
+                            {{ __('Payment received — your domain is being set up. We will email you when it is ready.') }}
+                        @endif
                     </x-alert>
                 @elseif ($order->status === \App\Enums\DomainOrderStatus::Failed)
                     <x-alert type="warning" class="mt-6">
-                        {{ __('There was a hiccup while setting up your domain. Our team has been notified and will resolve it shortly — no further action is needed from you.') }}
+                        {{ __('Your order needs a review. Please contact our team with your order reference. If you have already paid, do not pay again.') }}
                     </x-alert>
                 @endif
 
                 <div class="mt-8 flex flex-wrap gap-3">
+                    <x-button :href="url()->current()" variant="primary" size="sm">{{ __('Refresh status') }}</x-button>
                     <x-button :href="route('domains.index')" variant="outline" size="sm">{{ __('Search Another Domain') }}</x-button>
                     <x-button :href="route('contact.form')" variant="outline" size="sm">{{ __('Need Help?') }}</x-button>
                 </div>

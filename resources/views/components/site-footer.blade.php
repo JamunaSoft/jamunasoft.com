@@ -17,7 +17,7 @@
     ];
 @endphp
 
-<footer class="bg-navy-950 text-slate-300">
+<footer class="border-t border-white/10 bg-navy-950 text-slate-300">
     <div class="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-4">
             {{-- About + contact --}}
@@ -75,7 +75,7 @@
                         @endforeach
                     </ul>
                 @else
-                    <p class="mt-4 text-sm text-slate-500">{{ __('Coming soon.') }}</p>
+                    <p class="mt-4 text-sm text-slate-400">{{ __('Coming soon.') }}</p>
                 @endif
             </div>
 
@@ -124,7 +124,7 @@
                                     value="{{ old('email') }}"
                                     required
                                     placeholder="{{ __('you@example.com') }}"
-                                    class="w-full min-w-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400/40"
+                                    class="w-full min-w-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-slate-400 focus:border-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400/40"
                                 />
                                 <button type="submit" class="shrink-0 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 px-4 py-2.5 text-sm font-semibold text-white hover:from-brand-700 hover:to-accent-600">
                                     {{ __('Subscribe') }}
@@ -141,12 +141,12 @@
         </div>
 
         <div class="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 sm:flex-row">
-            <p class="text-sm text-slate-500">{{ $copyright }}</p>
+            <p class="text-sm text-slate-400">{{ $copyright }}</p>
             @if (count($socialLinks) > 0)
                 <ul class="flex items-center gap-4" aria-label="{{ __('Social media') }}">
                     @foreach ($socialLinks as $social)
                         <li>
-                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-slate-500 hover:text-white" aria-label="{{ $social['label'] ?: $social['platform'] }}">
+                            <a href="{{ $social['url'] }}" target="_blank" rel="noopener" class="text-slate-400 hover:text-white" aria-label="{{ $social['label'] ?: $social['platform'] }}">
                                 @if (isset($socialIcons[strtolower((string) $social['platform'])]))
                                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="{{ $socialIcons[strtolower((string) $social['platform'])] }}"/></svg>
                                 @else

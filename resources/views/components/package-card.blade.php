@@ -25,7 +25,7 @@
             @if ($package->displayPrice())
                 <span class="text-4xl font-bold text-navy-900">&#2547;{{ $package->displayPrice() }}</span>
                 @if ($hasDiscount)
-                    <span class="text-base font-medium text-slate-400 line-through">&#2547;{{ number_format((float) $package->price) }}</span>
+                    <span class="text-base font-medium text-slate-500 line-through">&#2547;{{ number_format((float) $package->price) }}</span>
                 @endif
                 @if ($package->price_suffix)
                     <span class="text-sm text-slate-500">{{ $package->t('price_suffix') }}</span>
@@ -47,7 +47,7 @@
                 </li>
             @endforeach
             @foreach ($excluded as $feature)
-                <li class="flex items-start gap-2 text-slate-400">
+                <li class="flex items-start gap-2 text-slate-500">
                     <svg class="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>

@@ -20,7 +20,7 @@ step "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
 
 step "Building frontend assets"
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund
 npm run build
 
 step "Running database migrations"
@@ -31,6 +31,7 @@ php artisan storage:link || true
 php artisan config:cache
 php artisan view:cache
 php artisan event:cache
+php artisan filament:clear-cached-components
 
 step "Restarting queue workers (picks up the new code)"
 php artisan queue:restart

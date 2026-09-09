@@ -10,23 +10,26 @@ use App\Jobs\ProcessDomainOrder;
 use App\Models\DomainOrder;
 use App\Models\User;
 use App\Services\DomainOrderService;
+use App\Services\Spaceship\SpaceshipClient;
+use App\Services\Spaceship\SpaceshipException;
 use BackedEnum;
-use Illuminate\Database\Eloquent\Builder;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Carbon;
 use UnitEnum;
 
 class DomainOrderResource extends Resource
@@ -61,6 +64,7 @@ class DomainOrderResource extends Resource
             Grid::make(2)->schema([
                 Select::make('type')
                     ->options(DomainOrderType::class)
+                    ->live()
                     ->default(DomainOrderType::Register)
                     ->required(),
                 TextInput::make('domain_name')
@@ -103,8 +107,10 @@ class DomainOrderResource extends Resource
                     ->helperText('Leave empty to price automatically from the TLD table.'),
                 TextInput::make('meta.epp_code')
                     ->label('EPP / Auth code')
-                    ->visible(fn (Get $get): bool => $get('type') === DomainOrderType::Transfer)
-                    ->dehydrated(fn (Get $get): bool => $get('type') === DomainOrderType::Transfer)
+                    ->password()
+                    ->revealable()
+                    ->visible(fn (Get $get): bool => in_array($get('type'), [DomainOrderType::Transfer, DomainOrderType::Transfer->value], true))
+                    ->dehydrated(fn (Get $get): bool => in_array($get('type'), [DomainOrderType::Transfer, DomainOrderType::Transfer->value], true))
                     ->columnSpanFull(),
             ]),
         ]);
@@ -129,6 +135,9 @@ class DomainOrderResource extends Resource
                 TextEntry::make('paid_at')->dateTime()->placeholder('—'),
                 TextEntry::make('completed_at')->dateTime()->placeholder('—'),
                 TextEntry::make('spaceship_operation_id')->placeholder('—')->copyable(),
+                TextEntry::make('meta.source_registrar')->label('Transfer source')->placeholder('—'),
+                TextEntry::make('meta.transfer_status')->label('Registrar transfer status')->placeholder('Not checked yet'),
+                TextEntry::make('meta.transfer_checked_at')->label('Transfer last checked')->dateTime()->placeholder('—'),
                 TextEntry::make('created_at')->dateTime(),
             ]),
             TextEntry::make('error_message')
@@ -142,24 +151,47 @@ class DomainOrderResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('reference')->searchable()->copyable(),
-                TextColumn::make('domain_name')->searchable()->sortable(),
+                TextColumn::make('reference')->searchable()->copyable()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('domain_name')->searchable()->sortable()->description(fn (DomainOrder $record) => $record->status === DomainOrderStatus::Failed ? str($record->error_message)->limit(110)->toString() : null),
                 TextColumn::make('customer_name')->searchable()->toggleable(),
                 TextColumn::make('registrar')->badge()->color('gray')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('type')->badge()->color('gray'),
                 TextColumn::make('years')->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('amount')->money('BDT')->sortable(),
                 TextColumn::make('status')->badge(),
-                TextColumn::make('created_at')->dateTime()->sortable(),
+                TextColumn::make('created_at')->dateTime('M j, Y')->sortable()->toggleable(),
             ])
             ->defaultSort('created_at', 'desc')
+            ->poll('30s')
+            ->persistFiltersInSession()
             ->filters([
                 SelectFilter::make('status')->options(DomainOrderStatus::class),
                 SelectFilter::make('type')->options(DomainOrderType::class),
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('checkTransfer')
+                    ->label('Check transfer')
+                    ->icon(Heroicon::OutlinedArrowPath)
+                    ->authorize(fn (DomainOrder $record) => static::canEdit($record))
+                    ->visible(fn (DomainOrder $record) => $record->type === DomainOrderType::Transfer && $record->status === DomainOrderStatus::Processing && $record->registrar === 'spaceship')
+                    ->action(function (DomainOrder $record) {
+                        if (data_get($record->meta, 'transfer_checked_at') && Carbon::parse(data_get($record->meta, 'transfer_checked_at'))->gt(now()->subMinute())) {
+                            Notification::make()->title('Recently checked: '.data_get($record->meta, 'transfer_status', 'processing'))->info()->send();
+
+                            return;
+                        }
+                        try {
+                            $transfer = app(SpaceshipClient::class)->getTransfer($record->domain_name);
+                            $status = (string) data_get($transfer, 'status', 'unknown');
+                            $record->update(['meta' => array_merge($record->meta ?? [], ['transfer_status' => $status, 'transfer_checked_at' => now()->toIso8601String()])]);
+                            Notification::make()->title('Registrar transfer status: '.$status)->body('Monitoring will update the order automatically. This check does not submit a new transfer.')->info()->send();
+                        } catch (SpaceshipException $e) {
+                            Notification::make()->title('Could not check transfer')->body($e->getMessage())->warning()->send();
+                        }
+                    }),
                 Action::make('confirmPayment')
+                    ->authorize(fn (DomainOrder $record) => static::canEdit($record))
                     ->label('Confirm payment')
                     ->icon(Heroicon::OutlinedBanknotes)
                     ->color('success')
@@ -187,6 +219,7 @@ class DomainOrderResource extends Resource
                             ->send();
                     }),
                 Action::make('retry')
+                    ->authorize(fn (DomainOrder $record) => static::canEdit($record))
                     ->label('Retry')
                     ->icon(Heroicon::OutlinedArrowPath)
                     ->color('warning')
@@ -202,6 +235,7 @@ class DomainOrderResource extends Resource
                             ->send();
                     }),
                 Action::make('cancel')
+                    ->authorize(fn (DomainOrder $record) => static::canEdit($record))
                     ->label('Cancel')
                     ->icon(Heroicon::OutlinedXMark)
                     ->color('danger')

@@ -1,8 +1,8 @@
 {{-- Domain search band: submits to the domain availability page. --}}
-<section class="border-t border-white/10 bg-navy-900 py-16" aria-label="{{ __('Domain search') }}">
+<section class="domain-search-band border-t border-white/10 bg-navy-900 py-10" aria-label="{{ __('Domain search') }}">
     <div class="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <p class="text-xs font-semibold uppercase tracking-widest text-accent-400">{{ __('Domains') }}</p>
-        <h2 class="mt-2 text-3xl font-bold text-white sm:text-4xl">{{ __('Find Your Perfect Domain') }}</h2>
+        <h2 class="mt-2 text-2xl font-bold text-white sm:text-3xl">{{ __('Find Your Perfect Domain') }}</h2>
         <p class="mt-3 text-slate-300">{{ __('Register or transfer your domain with free DNS and local support.') }}</p>
 
         <form action="{{ route('domains.index') }}" method="GET" class="mx-auto mt-8 flex max-w-2xl flex-col gap-3 sm:flex-row">
@@ -12,12 +12,15 @@
                 type="text"
                 name="q"
                 required
+                maxlength="253"
+                autocapitalize="none"
+                spellcheck="false"
                 placeholder="{{ __('yourbusiness.com') }}"
                 class="w-full rounded-full border-0 bg-white px-6 py-4 text-base text-navy-900 placeholder:text-slate-400 focus:ring-2 focus:ring-accent-500"
             >
             <button
                 type="submit"
-                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-brand-600 to-accent-500 px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:from-brand-700 hover:to-accent-600"
+                class="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-brand-600 px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-700"
             >
                 {{ __('Search Domain') }}
             </button>

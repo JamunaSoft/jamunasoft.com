@@ -82,7 +82,7 @@
                                 @foreach ($recentPosts as $recent)
                                     <li>
                                         <a href="{{ route('blog.show', $recent) }}" class="block text-sm font-medium text-slate-700 hover:text-brand-700">{{ $recent->t('title') }}</a>
-                                        <span class="text-xs text-slate-400">{{ $recent->published_at?->translatedFormat('j M Y') }}</span>
+                                        <span class="text-xs text-slate-500">{{ $recent->published_at?->translatedFormat('j M Y') }}</span>
                                     </li>
                                 @endforeach
                             </ul>

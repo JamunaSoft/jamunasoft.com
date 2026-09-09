@@ -1,6 +1,6 @@
 @props(['title', 'subtitle' => null, 'breadcrumbs' => []])
 
-<section class="relative overflow-hidden bg-navy-950">
+<section class="page-masthead relative overflow-hidden bg-navy-950">
     <div class="absolute inset-0 opacity-30" aria-hidden="true">
         <div class="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-brand-600 blur-3xl"></div>
     </div>

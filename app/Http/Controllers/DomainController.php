@@ -91,6 +91,7 @@ class DomainController extends Controller
         return view('domains.status', [
             'order' => $order,
             'seo' => [
+                'noindex' => true,
                 'title' => __('Domain Order :reference', ['reference' => $order->reference]),
                 'description' => __('Track the status of your domain order.'),
             ],

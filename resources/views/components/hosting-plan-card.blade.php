@@ -45,7 +45,7 @@
             @endforeach
             <div class="flex items-center justify-between gap-4">
                 <dt class="text-slate-500">{{ __('Free SSL') }}</dt>
-                <dd class="font-medium {{ $plan->has_ssl ? 'text-emerald-600' : 'text-slate-400' }}">{{ $plan->has_ssl ? __('Included') : __('Not included') }}</dd>
+                <dd class="font-medium {{ $plan->has_ssl ? 'text-emerald-700' : 'text-slate-500' }}">{{ $plan->has_ssl ? __('Included') : __('Not included') }}</dd>
             </div>
         </dl>
     @endif
