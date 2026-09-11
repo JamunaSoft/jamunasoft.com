@@ -130,11 +130,19 @@
                                     {{ __('Subscribe') }}
                                 </button>
                             </div>
+                            @if (config('services.turnstile.site_key'))
+                                <div class="cf-turnstile mt-3" data-sitekey="{{ config('services.turnstile.site_key') }}" data-theme="dark" data-size="flexible"></div>
+                            @endif
                             {{-- $errors is unavailable when the 404 page renders outside the web middleware stack --}}
                             @if (($errors ?? null)?->has('email'))
                                 <p class="mt-2 text-xs font-medium text-red-400">{{ $errors->first('email') }}</p>
+                            @elseif (($errors ?? null)?->has('cf-turnstile-response'))
+                                <p class="mt-2 text-xs font-medium text-red-400">{{ $errors->first('cf-turnstile-response') }}</p>
                             @endif
                         </form>
+                        @if (config('services.turnstile.site_key'))
+                            <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+                        @endif
                     @endif
                 </div>
             </div>

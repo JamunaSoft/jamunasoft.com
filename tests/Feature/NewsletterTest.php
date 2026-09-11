@@ -6,6 +6,7 @@ use App\Enums\NewsletterStatus;
 use App\Mail\NewsletterConfirmMail;
 use App\Models\NewsletterSubscriber;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -56,6 +57,46 @@ class NewsletterTest extends TestCase
     public function test_invalid_email_is_rejected(): void
     {
         $this->post('/newsletter', ['email' => 'nope'])->assertSessionHasErrors('email');
+
+        $this->assertDatabaseCount('newsletter_subscribers', 0);
+    }
+
+    public function test_subscribing_succeeds_when_turnstile_passes(): void
+    {
+        config(['services.turnstile.secret_key' => 'test-secret']);
+        Mail::fake();
+        Http::fake(['challenges.cloudflare.com/*' => Http::response(['success' => true])]);
+
+        $this->post('/newsletter', [
+            'email' => 'reader@example.com',
+            'cf-turnstile-response' => 'token',
+        ])->assertRedirect();
+
+        $this->assertDatabaseCount('newsletter_subscribers', 1);
+    }
+
+    public function test_subscribing_is_rejected_when_turnstile_fails(): void
+    {
+        config(['services.turnstile.secret_key' => 'test-secret']);
+        Mail::fake();
+        Http::fake(['challenges.cloudflare.com/*' => Http::response(['success' => false])]);
+
+        $this->post('/newsletter', [
+            'email' => 'reader@example.com',
+            'cf-turnstile-response' => 'token',
+        ])->assertSessionHasErrors('cf-turnstile-response');
+
+        $this->assertDatabaseCount('newsletter_subscribers', 0);
+        Mail::assertNothingQueued();
+    }
+
+    public function test_subscribing_is_rejected_when_turnstile_token_missing(): void
+    {
+        config(['services.turnstile.secret_key' => 'test-secret']);
+        Mail::fake();
+
+        $this->post('/newsletter', ['email' => 'reader@example.com'])
+            ->assertSessionHasErrors('cf-turnstile-response');
 
         $this->assertDatabaseCount('newsletter_subscribers', 0);
     }

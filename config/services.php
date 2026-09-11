@@ -47,6 +47,11 @@ return [
         'secret' => env('WHMCS_API_SECRET'),
     ],
 
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
     'resellcube' => [
         'user_id' => env('RESELLCUBE_USER_ID'),
         'api_key' => env('RESELLCUBE_API_KEY'),
