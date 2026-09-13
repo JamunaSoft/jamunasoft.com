@@ -71,6 +71,65 @@ class InvoiceService
     }
 
     /**
+     * Add billable items to an existing open invoice for the same client,
+     * billing profile and due date, or create a new invoice when none exists.
+     * This gives renewal automation WHMCS-style consolidation without the
+     * admin manually merging separate invoices later.
+     *
+     * @param  array<int, array{title?: string, description?: ?string, quantity?: float, unit_price: float, item_type?: ?string, item_id?: ?int}>  $items
+     */
+    public function createOrAppendOpen(
+        int $userId,
+        array $items,
+        ?\DateTimeInterface $dueAt = null,
+        ?string $notes = null,
+        bool $sendEmail = true,
+        ?int $billingProfileId = null,
+    ): Invoice {
+        $dueAt ??= now()->addDays(7);
+
+        $invoice = DB::transaction(function () use ($userId, $items, $dueAt, $notes, $billingProfileId): Invoice {
+            $invoice = Invoice::query()
+                ->unpaid()
+                ->where('user_id', $userId)
+                ->where('billing_profile_id', $billingProfileId)
+                ->whereDate('due_at', $dueAt)
+                ->oldest()
+                ->first();
+
+            if ($invoice === null) {
+                return $this->create($userId, $items, $dueAt, $notes, sendEmail: false, billingProfileId: $billingProfileId);
+            }
+
+            foreach ($items as $item) {
+                $quantity = (float) ($item['quantity'] ?? 1);
+
+                $invoice->items()->create([
+                    'title' => $item['title'] ?? null,
+                    'description' => $item['description'] ?? null,
+                    'quantity' => $quantity,
+                    'unit_price' => $item['unit_price'],
+                    'total' => round($quantity * (float) $item['unit_price'], 2),
+                    'item_type' => $item['item_type'] ?? null,
+                    'item_id' => $item['item_id'] ?? null,
+                ]);
+            }
+
+            if (filled($notes)) {
+                $invoice->update(['notes' => trim(($invoice->notes ? $invoice->notes."\n" : '').$notes)]);
+            }
+
+            return $this->recalculateTotals($invoice);
+        });
+
+        if ($sendEmail) {
+            $this->sendInvoice($invoice);
+        }
+
+        return $invoice;
+    }
+
+    /**
      * Recompute item totals and invoice totals; call after items change.
      */
     public function recalculateTotals(Invoice $invoice): Invoice

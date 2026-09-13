@@ -56,7 +56,7 @@ class RecurringBillingService
         // One invoice per client per billing profile (an owner with two
         // companies gets two invoices)…
         foreach ($dueServices->groupBy(fn (ClientService $service) => $service->user_id.':'.($service->billing_profile_id ?? 0)) as $services) {
-            $generated[] = $this->invoices->create(
+            $generated[] = $this->invoices->createOrAppendOpen(
                 userId: $services->first()->user_id,
                 items: $this->serviceLineItems($services),
                 dueAt: $services->min('next_due_at'),

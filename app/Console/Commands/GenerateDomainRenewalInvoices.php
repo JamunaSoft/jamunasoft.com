@@ -54,6 +54,7 @@ class GenerateDomainRenewalInvoices extends Command
                     customer: ['name' => $domain->user->name, 'email' => $domain->user->email, 'user_id' => $domain->user_id],
                     domainName: $domain->name,
                     type: DomainOrderType::Renew,
+                    invoiceDueAt: $domain->expires_at,
                 );
 
                 $generated++;

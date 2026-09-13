@@ -37,6 +37,7 @@ class DomainOrderService
         DomainOrderType $type,
         int $years = 1,
         ?float $amount = null,
+        ?\DateTimeInterface $invoiceDueAt = null,
     ): DomainOrder {
         $domainName = strtolower(trim($domainName));
 
@@ -77,7 +78,7 @@ class DomainOrderService
         // email already carries the payment instructions, so no separate
         // invoice email. Guest orders get invoiced once a user exists.
         if ($order->user_id !== null) {
-            app(InvoiceService::class)->create(
+            app(InvoiceService::class)->createOrAppendOpen(
                 userId: $order->user_id,
                 items: [[
                     'title' => sprintf(
@@ -92,7 +93,7 @@ class DomainOrderService
                     'item_type' => 'domain_order',
                     'item_id' => $order->id,
                 ]],
-                dueAt: now()->addDays(7),
+                dueAt: $invoiceDueAt ?? now()->addDays(7),
                 sendEmail: false,
             );
         }
