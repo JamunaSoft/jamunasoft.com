@@ -19,6 +19,7 @@ use App\Models\EmailLog;
 use App\Models\Payment;
 use App\Models\User;
 use BackedEnum;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Facades\Filament;
@@ -197,6 +198,7 @@ class CustomerResource extends Resource
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
+                DeleteAction::make(),
             ]);
     }
 

@@ -6,6 +6,7 @@ use App\Filament\Resources\CustomerResource;
 use App\Models\User;
 use App\Services\InvoiceService;
 use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
@@ -104,6 +105,7 @@ class ViewCustomer extends ViewRecord
                         ->send();
                 }),
             EditAction::make(),
+            DeleteAction::make(),
         ];
     }
 }
