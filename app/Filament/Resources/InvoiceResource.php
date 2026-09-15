@@ -11,6 +11,7 @@ use App\Filament\Support\InvoiceActions;
 use App\Models\BillingProfile;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
+use App\Models\Payment;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\ActionGroup;
@@ -156,8 +157,12 @@ class InvoiceResource extends Resource
                     TextEntry::make('amount')->money('BDT'),
                     TextEntry::make('method')->placeholder('—'),
                     TextEntry::make('transaction_id')->placeholder('—'),
+                    TextEntry::make('attachment_path')
+                        ->label('Attachment')
+                        ->state(fn (Payment $record) => $record->attachment_path ? basename($record->attachment_path) : null)
+                        ->placeholder('—'),
                 ])
-                ->columns(4)
+                ->columns(5)
                 ->columnSpanFull()
                 ->visible(fn (Invoice $record) => $record->payments->isNotEmpty()),
             TextEntry::make('notes')->placeholder('—')->columnSpanFull(),

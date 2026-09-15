@@ -178,22 +178,27 @@ class InvoiceService
         float $amount,
         ?string $method = null,
         ?string $transactionId = null,
+        ?\DateTimeInterface $paidAt = null,
+        ?string $attachmentPath = null,
         ?int $recordedBy = null,
         bool $processSideEffects = true,
     ): Payment {
+        $paidAt ??= now();
+
         $payment = $invoice->payments()->create([
             'user_id' => $invoice->user_id,
             'amount' => $amount,
             'method' => $method,
             'transaction_id' => $transactionId,
-            'paid_at' => now(),
+            'paid_at' => $paidAt,
+            'attachment_path' => $attachmentPath,
             'recorded_by' => $recordedBy,
         ]);
 
         $invoice->update(['amount_paid' => round((float) $invoice->amount_paid + $amount, 2)]);
 
         if ($invoice->balance() <= 0 && $invoice->status->isOpen()) {
-            $invoice->update(['status' => InvoiceStatus::Paid, 'paid_at' => now()]);
+            $invoice->update(['status' => InvoiceStatus::Paid, 'paid_at' => $paidAt]);
 
             if ($processSideEffects) {
                 $this->runPaidSideEffects($invoice, $method, $transactionId);

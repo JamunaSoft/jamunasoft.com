@@ -9,10 +9,13 @@ use App\Services\InvoiceService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\DeleteAction;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -41,6 +44,10 @@ class InvoiceActions
                         ->prefix('৳')
                         ->default($record->balance())
                         ->required(),
+                    DatePicker::make('paid_at')
+                        ->label('Payment date')
+                        ->default(now())
+                        ->required(),
                     Select::make('method')
                         ->options([
                             'bkash' => 'bKash',
@@ -52,6 +59,12 @@ class InvoiceActions
                         ])
                         ->required(),
                     TextInput::make('transaction_id')->label('Transaction ID / reference'),
+                    FileUpload::make('attachment_path')
+                        ->label('Attachment')
+                        ->disk('local')
+                        ->directory('attachments/payments')
+                        ->acceptedFileTypes(['image/png', 'image/jpeg', 'image/webp', 'application/pdf'])
+                        ->maxSize(5120),
                 ])
                 ->action(function (Invoice $record, array $data) {
                     app(InvoiceService::class)->recordPayment(
@@ -59,6 +72,8 @@ class InvoiceActions
                         (float) $data['amount'],
                         $data['method'],
                         $data['transaction_id'] ?? null,
+                        paidAt: Carbon::parse($data['paid_at']),
+                        attachmentPath: $data['attachment_path'] ?? null,
                         recordedBy: auth()->id(),
                     );
 

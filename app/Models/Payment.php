@@ -9,7 +9,7 @@ class Payment extends Model
 {
     protected $fillable = [
         'invoice_id', 'user_id', 'amount', 'method', 'transaction_id',
-        'paid_at', 'recorded_by', 'notes',
+        'paid_at', 'attachment_path', 'recorded_by', 'notes',
     ];
 
     protected function casts(): array
