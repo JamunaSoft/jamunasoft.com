@@ -29,6 +29,7 @@ class DomainController extends Controller
             'query' => $query,
             'results' => $results,
             'searchError' => $searchError,
+            'billingProfiles' => $request->user()?->billingProfiles()->orderBy('company_name')->get() ?? collect(),
             'seo' => [
                 'title' => __('Domain Registration'),
                 'description' => __('Search and register your perfect domain name at the best prices in Bangladesh — pay easily with bKash or bank transfer.'),
@@ -70,12 +71,29 @@ class DomainController extends Controller
             return back()->withInput()->withErrors(['domain' => __('This is a premium domain — please contact us for a price.')]);
         }
 
+        $customer = [
+            'name' => (string) $request->validated('name'),
+            'email' => (string) $request->validated('email'),
+            'phone' => $request->validated('phone'),
+            'user_id' => $request->user()?->id,
+        ];
+
+        if ($request->user() && $request->validated('contact_option') === 'existing') {
+            $profile = $request->user()
+                ->billingProfiles()
+                ->whereKey($request->validated('billing_profile_id'))
+                ->firstOrFail();
+
+            $customer = [
+                'name' => $profile->contact_name ?: $profile->company_name,
+                'email' => $profile->email ?: $request->user()->email,
+                'phone' => $profile->phone ?: $request->user()->phone,
+                'user_id' => $request->user()->id,
+            ];
+        }
+
         $order = $orders->create(
-            customer: [
-                'name' => (string) $request->validated('name'),
-                'email' => (string) $request->validated('email'),
-                'phone' => $request->validated('phone'),
-            ],
+            customer: $customer,
             domainName: $domain,
             type: DomainOrderType::Register,
             years: (int) $request->validated('years'),

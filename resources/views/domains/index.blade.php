@@ -1,6 +1,12 @@
 @extends('layouts.app')
 
 @section('content')
+    @php
+        $defaultContactOption = auth()->check() && $billingProfiles->isNotEmpty()
+            ? old('contact_option', 'existing')
+            : 'new';
+    @endphp
+
     @include('partials.page-header', [
         'title' => __('Domain Registration'),
         'subtitle' => __('Find your perfect domain name — instant search, local payment, and friendly support in Bangla.'),
@@ -13,6 +19,7 @@
             orderDomain: '{{ old('domain', '') }}',
             orderPrice: {{ old('domain') ? (float) (\App\Models\Tld::matching((string) old('domain'))?->register_price ?? 0) : 0 }},
             years: {{ (int) old('years', 1) }},
+            contactOption: '{{ $defaultContactOption }}',
         }"
     >
         <div class="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
@@ -93,9 +100,74 @@
 
                     <input type="hidden" name="domain" :value="orderDomain" />
 
-                    <x-form.input name="name" :label="__('Full Name')" required autocomplete="name" />
-                    <x-form.input name="email" :label="__('Email')" type="email" required autocomplete="email" />
-                    <x-form.input name="phone" :label="__('Phone')" type="tel" autocomplete="tel" />
+                    @auth
+                        <div class="space-y-3 sm:col-span-2">
+                            <p class="text-sm font-semibold text-navy-900">{{ __('Contact Details') }}</p>
+
+                            @if ($billingProfiles->isNotEmpty())
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-brand-300">
+                                        <input
+                                            type="radio"
+                                            name="contact_option"
+                                            value="existing"
+                                            x-model="contactOption"
+                                            class="mt-1 border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                        <span>
+                                            <span class="block text-sm font-bold text-navy-900">{{ __('Existing contact details') }}</span>
+                                            <span class="mt-1 block text-xs leading-relaxed text-slate-500">{{ __('Use a saved billing contact from your client account.') }}</span>
+                                        </span>
+                                    </label>
+
+                                    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-4 transition hover:border-brand-300">
+                                        <input
+                                            type="radio"
+                                            name="contact_option"
+                                            value="new"
+                                            x-model="contactOption"
+                                            class="mt-1 border-slate-300 text-brand-600 focus:ring-brand-500"
+                                        />
+                                        <span>
+                                            <span class="block text-sm font-bold text-navy-900">{{ __('New contact details') }}</span>
+                                            <span class="mt-1 block text-xs leading-relaxed text-slate-500">{{ __('Enter a different contact for this domain order.') }}</span>
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <div x-show="contactOption === 'existing'" x-cloak>
+                                    <label for="billing_profile_id" class="mb-1.5 block text-sm font-semibold text-navy-900">{{ __('Saved Contact') }}</label>
+                                    <select
+                                        id="billing_profile_id"
+                                        name="billing_profile_id"
+                                        class="w-full rounded-xl border-slate-300 focus:border-brand-500 focus:ring-brand-500"
+                                    >
+                                        @foreach ($billingProfiles as $profile)
+                                            <option value="{{ $profile->id }}" @selected((int) old('billing_profile_id') === $profile->id)>
+                                                {{ $profile->company_name }}
+                                                @if ($profile->contact_name)
+                                                    — {{ $profile->contact_name }}
+                                                @endif
+                                                @if ($profile->email)
+                                                    ({{ $profile->email }})
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    @error('billing_profile_id')
+                                        <p class="mt-1.5 text-xs font-medium text-red-600">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            @else
+                                <input type="hidden" name="contact_option" value="new" />
+                                <x-alert type="info">{{ __('No saved billing contact found. Add new contact details for this order.') }}</x-alert>
+                            @endif
+                        </div>
+                    @endauth
+
+                    <x-form.input name="name" :label="__('Full Name')" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" :value="auth()->user()?->name" autocomplete="name" />
+                    <x-form.input name="email" :label="__('Email')" type="email" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" :value="auth()->user()?->email" autocomplete="email" />
+                    <x-form.input name="phone" :label="__('Phone')" type="tel" x-show="contactOption === 'new'" x-cloak :value="auth()->user()?->phone" autocomplete="tel" />
 
                     <div>
                         <label for="years" class="mb-1.5 block text-sm font-semibold text-navy-900">{{ __('Registration Period') }}</label>

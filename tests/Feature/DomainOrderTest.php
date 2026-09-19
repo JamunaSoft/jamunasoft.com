@@ -8,6 +8,7 @@ use App\Jobs\PollDomainTransfer;
 use App\Mail\DomainOrderCompleted;
 use App\Mail\DomainOrderConfirmation;
 use App\Mail\DomainTransferStarted;
+use App\Models\BillingProfile;
 use App\Models\Domain;
 use App\Models\DomainOrder;
 use App\Models\Tld;
@@ -137,6 +138,41 @@ class DomainOrderTest extends TestCase
         $this->get(route('domains.order.status', $order->reference))
             ->assertOk()
             ->assertSee($order->reference);
+    }
+
+    public function test_logged_in_client_can_order_with_existing_billing_contact(): void
+    {
+        $this->fakeSpaceship();
+        Mail::fake();
+
+        $user = User::factory()->create([
+            'name' => 'Account Owner',
+            'email' => 'owner@example.com',
+        ]);
+
+        $profile = BillingProfile::create([
+            'user_id' => $user->id,
+            'company_name' => 'Example Ltd',
+            'contact_name' => 'Billing Contact',
+            'email' => 'billing@example.com',
+            'phone' => '01800000000',
+        ]);
+
+        $response = $this->actingAs($user)->post('/domains/order', [
+            'contact_option' => 'existing',
+            'billing_profile_id' => $profile->id,
+            'domain' => 'clientdomain.com',
+            'years' => 1,
+        ]);
+
+        $order = DomainOrder::firstOrFail();
+
+        $response->assertRedirect(route('domains.order.status', $order->reference));
+
+        $this->assertSame($user->id, $order->user_id);
+        $this->assertSame('Billing Contact', $order->customer_name);
+        $this->assertSame('billing@example.com', $order->customer_email);
+        $this->assertSame('01800000000', $order->customer_phone);
     }
 
     public function test_payment_confirmation_registers_the_domain(): void
