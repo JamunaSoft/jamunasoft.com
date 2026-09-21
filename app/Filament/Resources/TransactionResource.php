@@ -2,10 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\InvoiceStatus;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\TransactionResource\Pages\ListTransactions;
 use App\Models\LedgerEntry;
+use App\Models\Payment;
 use BackedEnum;
+use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Support\Enums\FontWeight;
 use Filament\Support\Icons\Heroicon;
@@ -13,6 +20,8 @@ use Filament\Tables\Columns\Summarizers\Sum;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
@@ -117,6 +126,76 @@ class TransactionResource extends Resource
                             $query->whereYear('happened_at', substr($data['value'], 0, 4))
                                 ->whereMonth('happened_at', substr($data['value'], 5, 2));
                         }
+                    }),
+            ])
+            ->recordActions([
+                Action::make('editPayment')
+                    ->label('Edit payment')
+                    ->icon(Heroicon::OutlinedPencilSquare)
+                    ->visible(fn (LedgerEntry $record) => $record->direction === 'in' && str_starts_with($record->id, 'P'))
+                    ->fillForm(function (LedgerEntry $record): array {
+                        $payment = Payment::findOrFail((int) substr($record->id, 1));
+
+                        return [
+                            'amount' => $payment->amount,
+                            'paid_at' => $payment->paid_at,
+                            'method' => $payment->method,
+                            'transaction_id' => $payment->transaction_id,
+                        ];
+                    })
+                    ->schema([
+                        TextInput::make('amount')
+                            ->numeric()
+                            ->prefix('৳')
+                            ->required(),
+                        DatePicker::make('paid_at')
+                            ->label('Payment date')
+                            ->required(),
+                        Select::make('method')
+                            ->options([
+                                'bkash' => 'bKash',
+                                'nagad' => 'Nagad',
+                                'rocket' => 'Rocket',
+                                'bank' => 'Bank transfer',
+                                'cash' => 'Cash',
+                                'card' => 'Card',
+                                'other' => 'Other',
+                            ])
+                            ->required(),
+                        TextInput::make('transaction_id')->label('Transaction ID / reference'),
+                    ])
+                    ->action(function (LedgerEntry $record, array $data): void {
+                        DB::transaction(function () use ($record, $data): void {
+                            $payment = Payment::with('invoice')
+                                ->lockForUpdate()
+                                ->findOrFail((int) substr($record->id, 1));
+
+                            $payment->update([
+                                'amount' => (float) $data['amount'],
+                                'paid_at' => Carbon::parse($data['paid_at']),
+                                'method' => $data['method'],
+                                'transaction_id' => $data['transaction_id'] ?? null,
+                            ]);
+
+                            $invoice = $payment->invoice()->lockForUpdate()->firstOrFail();
+                            $amountPaid = round((float) $invoice->payments()->sum('amount'), 2);
+                            $updates = ['amount_paid' => $amountPaid];
+
+                            if ($amountPaid >= (float) $invoice->total) {
+                                $updates['status'] = InvoiceStatus::Paid;
+                                $updates['paid_at'] = $invoice->payments()->latest('paid_at')->value('paid_at');
+                            } elseif ($invoice->status === InvoiceStatus::Paid) {
+                                $updates['status'] = InvoiceStatus::Unpaid;
+                                $updates['paid_at'] = null;
+                            }
+
+                            $invoice->update($updates);
+                        });
+
+                        Notification::make()
+                            ->title('Payment updated')
+                            ->success()
+                            ->send();
                     }),
             ]);
     }
