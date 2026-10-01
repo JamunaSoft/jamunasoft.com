@@ -165,7 +165,9 @@ class Invoice extends Model
     /**
      * What the client still owes on EARLIER unpaid invoices — shown on
      * invoice PDFs/emails as "Previous due" so one document carries the
-     * client's full payable picture.
+     * client's full payable picture. Scoped to the same billing profile, so
+     * sibling invoices from one "Invoice all services" run (one per profile)
+     * don't count each other as previous due.
      */
     public function previousDueAmount(): float
     {
@@ -173,6 +175,11 @@ class Invoice extends Model
         // still count as "previous" for later invoices.
         return round((float) static::query()
             ->where('user_id', $this->user_id)
+            ->when(
+                $this->billing_profile_id === null,
+                fn (Builder $query) => $query->whereNull('billing_profile_id'),
+                fn (Builder $query) => $query->where('billing_profile_id', $this->billing_profile_id),
+            )
             ->where(fn (Builder $query) => $query
                 ->where('created_at', '<', $this->created_at)
                 ->orWhere(fn (Builder $inner) => $inner

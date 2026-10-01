@@ -107,4 +107,18 @@ class BillingProfileTest extends TestCase
 
         $this->assertStringContainsString('Second Company Ltd.', (new InvoiceCreated($invoice))->render());
     }
+
+    public function test_invoice_all_services_siblings_do_not_show_each_other_as_previous_due(): void
+    {
+        $owner = User::factory()->create();
+        $profile = BillingProfile::create(['user_id' => $owner->id, 'company_name' => 'H&F Fashion Ltd.']);
+
+        $this->makeService($owner, 'VPS A', 6000);
+        $this->makeService($owner, 'VPS B', 6000, $profile->id);
+
+        $invoices = app(RecurringBillingService::class)->invoiceAllServicesFor($owner);
+
+        $this->assertCount(2, $invoices);
+        $invoices->each(fn ($invoice) => $this->assertSame(0.0, $invoice->previousDueAmount()));
+    }
 }

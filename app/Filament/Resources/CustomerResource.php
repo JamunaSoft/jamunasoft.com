@@ -92,8 +92,10 @@ class CustomerResource extends Resource
                 TextInput::make('company_name')
                     ->label('Company / organization')
                     ->helperText('Shown as the billed-to name on invoice PDFs.'),
+                TextInput::make('designation')
+                    ->placeholder('e.g. Managing Director'),
                 TextInput::make('phone'),
-                TextInput::make('address')->columnSpan(2),
+                TextInput::make('address'),
                 TextInput::make('city'),
                 TextInput::make('postal_code'),
                 TextInput::make('country')->default('Bangladesh'),
@@ -150,10 +152,11 @@ class CustomerResource extends Resource
                 ->schema([
                     TextEntry::make('name'),
                     TextEntry::make('company_name')->label('Company')->placeholder('—'),
-                    TextEntry::make('created_at')->label('Client since')->date(),
+                    TextEntry::make('designation')->placeholder('—'),
                     TextEntry::make('email')->copyable(),
                     TextEntry::make('secondary_email')->label('Secondary email')->copyable()->placeholder('—'),
                     TextEntry::make('phone')->placeholder('—'),
+                    TextEntry::make('created_at')->label('Client since')->date(),
                     TextEntry::make('billing_address')
                         ->label('Billing address')
                         ->state(fn (User $record) => collect([
