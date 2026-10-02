@@ -223,8 +223,8 @@ $client = $invoice->user;
             @php $billed = $invoice->billedTo(); @endphp
             <div class="sec-label">Invoiced To</div>
             @if ($billed['company'])
+                @if ($billed['designation'])<div>{{ $billed['designation'] }}</div>@endif
                 <div style="font-weight: bold; font-size: 13px;">{{ $billed['company'] }}</div>
-                <div class="muted">ATTN: {{ $billed['name'] }}</div>
             @else
                 <div style="font-weight: bold; font-size: 13px;">{{ $billed['name'] }}</div>
             @endif

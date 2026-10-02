@@ -52,8 +52,8 @@ $fmt = fn ($n) => number_format((float) $n, 2);
 
 <div style="margin-top: 20px;">
     <div style="font-size: 9px; font-weight: bold; letter-spacing: 1.5px; color: #00AEEF; text-transform: uppercase;">Account Statement For</div>
+    @if ($client->company_name && $client->designation)<div>{{ $client->designation }}</div>@endif
     <div style="font-weight: bold; font-size: 14px;">{{ $client->company_name ?: $client->name }}</div>
-    @if ($client->company_name)<div class="muted">ATTN: {{ $client->name }}</div>@endif
     <div class="muted">{{ $client->email }}</div>
 </div>
 

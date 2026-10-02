@@ -67,7 +67,7 @@ class Invoice extends Model
      * The "Invoiced To" identity: the selected billing profile's company
      * and address, falling back to the client's own details.
      *
-     * @return array{company: ?string, name: string, address: ?string, city_line: ?string, email: ?string}
+     * @return array{company: ?string, name: string, designation: ?string, address: ?string, city_line: ?string, email: ?string}
      */
     public function billedTo(): array
     {
@@ -78,6 +78,7 @@ class Invoice extends Model
             return [
                 'company' => $profile->company_name,
                 'name' => $profile->contact_name ?: $user->name,
+                'designation' => $user->designation,
                 'address' => $profile->address,
                 'city_line' => trim(implode(', ', array_filter([
                     trim(($profile->city ?? '').' '.($profile->postal_code ?? '')),
@@ -90,6 +91,7 @@ class Invoice extends Model
         return [
             'company' => $user->company_name,
             'name' => $user->name,
+            'designation' => $user->designation,
             'address' => $user->address,
             'city_line' => trim(implode(', ', array_filter([
                 trim(($user->city ?? '').' '.($user->postal_code ?? '')),
