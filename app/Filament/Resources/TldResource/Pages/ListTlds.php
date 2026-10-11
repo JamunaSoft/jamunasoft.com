@@ -13,16 +13,19 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\HtmlString;
 use Throwable;
 
 class ListTlds extends ListRecords
 {
     protected static string $resource = TldResource::class;
 
-    public function getSubheading(): ?string
+    public function getSubheading(): HtmlString
     {
-        return 'USD/BDT: '.settings('usd_bdt_rate', 'Not synced').' · Updated: '.settings('usd_bdt_updated_at', 'Never')
+        $status = 'USD/BDT: '.settings('usd_bdt_rate', 'Not synced').' · Updated: '.settings('usd_bdt_updated_at', 'Never')
             .(settings('tld_sync_error') ? ' · Last sync error: '.settings('tld_sync_error') : '');
+
+        return new HtmlString(e($status).' · <a href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">Rates by ExchangeRate-API</a>');
     }
 
     protected function getHeaderActions(): array
