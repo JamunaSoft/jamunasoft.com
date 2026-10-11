@@ -55,7 +55,16 @@ class TldResource extends Resource
                 TextInput::make('renew_price')->numeric()->prefix('৳')->required()->label('Renewal / year'),
                 TextInput::make('transfer_price')->numeric()->prefix('৳')->required()->label('Transfer'),
             ]),
+            Grid::make(3)->schema([
+                TextInput::make('register_usd')->label('Registration (USD)')->numeric()->minValue(0.0001)->maxValue(999999.9999)->prefix('$')
+                    ->helperText('Last verified retail price; enter manually if Whois cannot be fetched.'),
+                TextInput::make('renew_usd')->label('Renewal (USD)')->numeric()->minValue(0.0001)->maxValue(999999.9999)->prefix('$'),
+                TextInput::make('transfer_usd')->label('Transfer (USD)')->numeric()->minValue(0.0001)->maxValue(999999.9999)->prefix('$'),
+            ]),
             Grid::make(2)->schema([
+                Toggle::make('auto_price_sync')->label('Sync Whois retail prices')
+                    ->default(true)
+                    ->helperText('Turn off to keep manually entered BDT prices.'),
                 Toggle::make('is_active')->label('Active (shown on website)'),
                 TextInput::make('sort_order')->numeric()->default(0),
             ]),
@@ -73,7 +82,11 @@ class TldResource extends Resource
                 TextColumn::make('register_price')->money('BDT')->sortable()->label('Register'),
                 TextColumn::make('renew_price')->money('BDT')->sortable()->label('Renew'),
                 TextColumn::make('transfer_price')->money('BDT')->sortable()->label('Transfer'),
-                ToggleColumn::make('is_active')->label('Active'),
+                ToggleColumn::make('is_active')->label('Active')
+                    ->disabled(fn () => ! static::canCreate()),
+                TextColumn::make('auto_price_sync')->label('Price source')
+                    ->formatStateUsing(fn (bool $state) => $state ? 'Whois retail' : 'Manual')->badge(),
+                TextColumn::make('prices_synced_at')->label('Price updated')->since(),
                 TextColumn::make('sort_order')->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('sort_order')

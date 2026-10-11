@@ -10,6 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('app:send-follow-up-reminders')->dailyAt('08:00');
 Schedule::command('domains:sync')->dailyAt('04:00');
+Schedule::command('domains:sync-tld-prices --scheduled')->dailyAt('05:00')->withoutOverlapping();
 Schedule::command('domains:send-renewal-reminders')->dailyAt('09:00');
 Schedule::command('billing:generate-invoices')->dailyAt('08:30');
 Schedule::command('billing:generate-domain-renewal-invoices')->dailyAt('08:45');

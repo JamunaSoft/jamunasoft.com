@@ -36,6 +36,7 @@ npm run build
 
 step "Running database migrations"
 php artisan migrate --force
+php artisan domains:import-tld-catalog
 
 step "Refreshing caches"
 php artisan storage:link || true

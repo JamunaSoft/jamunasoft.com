@@ -10,7 +10,8 @@ class Tld extends Model
 {
     protected $fillable = [
         'tld', 'register_price', 'renew_price', 'transfer_price',
-        'is_active', 'sort_order',
+        'is_active', 'sort_order', 'auto_price_sync',
+        'register_usd', 'renew_usd', 'transfer_usd', 'prices_synced_at',
     ];
 
     protected function casts(): array
@@ -20,6 +21,11 @@ class Tld extends Model
             'renew_price' => 'decimal:2',
             'transfer_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'auto_price_sync' => 'boolean',
+            'register_usd' => 'decimal:4',
+            'renew_usd' => 'decimal:4',
+            'transfer_usd' => 'decimal:4',
+            'prices_synced_at' => 'datetime',
             'sort_order' => 'integer',
         ];
     }
