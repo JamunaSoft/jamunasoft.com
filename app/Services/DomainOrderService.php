@@ -42,13 +42,16 @@ class DomainOrderService
         $domainName = strtolower(trim($domainName));
 
         if ($amount === null) {
-            $tld = Tld::matching($domainName);
+            $domain = $type === DomainOrderType::Renew && isset($customer['user_id'])
+                ? Domain::query()->where('name', $domainName)->where('user_id', $customer['user_id'])->first()
+                : null;
+            $price = $domain?->renewalPrice() ?? Tld::matching($domainName)?->priceFor($type);
 
-            if ($tld === null) {
+            if ($price === null) {
                 throw new \InvalidArgumentException("No active pricing found for the TLD of {$domainName}.");
             }
 
-            $amount = $tld->priceFor($type) * $years;
+            $amount = $price * $years;
         }
 
         // New registrations go through the admin-selected registrar; renewals

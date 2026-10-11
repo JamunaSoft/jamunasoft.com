@@ -7,7 +7,6 @@ use App\Filament\Client\Resources\DomainResource\Pages\ListDomains;
 use App\Filament\Client\Resources\DomainResource\Pages\ManageDns;
 use App\Filament\Resources\DomainResource as AdminDomainResource;
 use App\Models\Domain;
-use App\Models\Tld;
 use App\Services\DomainOrderService;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -102,20 +101,20 @@ class DomainResource extends Resource
             ->icon(Heroicon::OutlinedArrowPath)
             ->color('success')
             ->schema(function (Domain $record) {
-                $tld = Tld::matching($record->name);
+                $price = $record->renewalPrice();
 
                 return [
                     Select::make('years')
                         ->options(array_combine(range(1, 5), range(1, 5)))
                         ->default(1)
                         ->required()
-                        ->helperText($tld
-                            ? '৳'.number_format((float) $tld->renew_price, 0).' per year — payment instructions follow after ordering.'
+                        ->helperText($price !== null
+                            ? '৳'.number_format($price, 0).' per year — payment instructions follow after ordering.'
                             : 'Pricing unavailable for this extension — please contact us.'),
                 ];
             })
             ->action(function (Domain $record, array $data) {
-                if (Tld::matching($record->name) === null) {
+                if ($record->renewalPrice() === null) {
                     Notification::make()
                         ->title('Please contact us to renew this domain')
                         ->warning()

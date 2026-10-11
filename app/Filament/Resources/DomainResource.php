@@ -6,7 +6,6 @@ use App\Enums\DomainOrderType;
 use App\Filament\Concerns\HasPermissionGates;
 use App\Filament\Resources\DomainResource\Pages\ListDomains;
 use App\Models\Domain;
-use App\Models\Tld;
 use App\Models\User;
 use App\Services\DomainOrderService;
 use App\Services\Registrars\RegistrarException;
@@ -20,6 +19,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -72,6 +72,14 @@ class DomainResource extends Resource
                 ->preload()
                 ->placeholder('Unassigned (company-owned)')
                 ->helperText('Panel customer who owns this domain. Registrar-side data is managed via Spaceship sync.'),
+            TextInput::make('renewal_price')
+                ->label('Custom renewal price')
+                ->numeric()
+                ->minValue(0)
+                ->maxValue(99999999.99)
+                ->step(0.01)
+                ->prefix('BDT')
+                ->helperText('Annual renewal price for this customer’s domain. Leave blank to use standard TLD pricing.'),
             Textarea::make('internal_notes')
                 ->rows(3)
                 ->columnSpanFull(),
@@ -86,6 +94,7 @@ class DomainResource extends Resource
                 TextEntry::make('user.name')->label('Customer')->placeholder('Unassigned (company-owned)'),
                 TextEntry::make('lifecycle_status')->badge()->color(fn (?string $state) => static::statusColor($state)),
                 TextEntry::make('verification_status')->placeholder('—'),
+                TextEntry::make('renewal_price')->label('Custom renewal price')->money('BDT')->placeholder('Standard TLD pricing'),
                 TextEntry::make('registered_at')->date(),
                 TextEntry::make('expires_at')->date(),
                 TextEntry::make('auto_renew')->badge()
@@ -214,13 +223,13 @@ class DomainResource extends Resource
                         ->label('Renew')
                         ->icon(Heroicon::OutlinedArrowPath)
                         ->color('success')
-                        ->visible(fn (Domain $record) => $record->user_id !== null && Tld::matching($record->name) !== null)
+                        ->visible(fn (Domain $record) => $record->user_id !== null && $record->renewalPrice() !== null)
                         ->schema(fn (Domain $record) => [
                             Select::make('years')
                                 ->options(array_combine(range(1, 5), range(1, 5)))
                                 ->default(1)
                                 ->required()
-                                ->helperText('৳'.number_format((float) Tld::matching($record->name)?->renew_price, 0).' per year - creates a renewal order + invoice for '.$record->user?->email.'.'),
+                                ->helperText('৳'.number_format((float) $record->renewalPrice(), 0).' per year - creates a renewal order + invoice for '.$record->user?->email.'.'),
                         ])
                         ->action(function (Domain $record, array $data) {
                             $order = app(DomainOrderService::class)->create(

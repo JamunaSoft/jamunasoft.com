@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Enums\BillingCycle;
 use App\Enums\ClientServiceStatus;
 use App\Enums\DomainOrderStatus;
+use App\Enums\DomainOrderType;
 use App\Models\ClientService;
 use App\Models\Domain;
 use App\Models\DomainOrder;
 use App\Models\Invoice;
 use App\Models\Tld;
 use App\Models\User;
+use App\Services\DomainOrderService;
 use App\Services\InvoiceService;
 use App\Services\RecurringBillingService;
 use App\Support\Settings;
@@ -103,6 +105,65 @@ class DomainAutoInvoiceTest extends TestCase
         $this->assertNotNull(app(InvoiceService::class)->openInvoiceFor('domain_order', DomainOrder::firstOrFail()->id));
 
         Settings::flush();
+    }
+
+    public function test_custom_price_generates_invoice_without_tld_pricing(): void
+    {
+        Mail::fake();
+        Settings::set(['domain_auto_invoice' => '1'], 'domains');
+        $user = User::factory()->create();
+        Domain::create([
+            'name' => 'custom.org',
+            'user_id' => $user->id,
+            'expires_at' => now()->addDays(11),
+            'renewal_price' => 2500.50,
+        ]);
+
+        $this->artisan('billing:generate-domain-renewal-invoices')->assertSuccessful();
+        $this->artisan('billing:generate-domain-renewal-invoices')->assertSuccessful();
+
+        $this->assertSame(1, DomainOrder::count());
+        $this->assertSame('2500.50', DomainOrder::firstOrFail()->amount);
+        $this->assertSame('2500.50', Invoice::firstOrFail()->total);
+    }
+
+    public function test_custom_price_applies_to_owner_renewals_only_and_multiplies_by_years(): void
+    {
+        Mail::fake();
+        $domain = $this->makeExpiringDomain();
+        $domain->update(['renewal_price' => 1250]);
+        $owner = $domain->user;
+        $other = User::factory()->create();
+        $service = app(DomainOrderService::class);
+
+        $renewal = $service->create(
+            customer: ['name' => $owner->name, 'email' => $owner->email, 'user_id' => $owner->id],
+            domainName: $domain->name,
+            type: DomainOrderType::Renew,
+            years: 2,
+        );
+        $this->assertSame('2500.00', $renewal->amount);
+
+        foreach ([DomainOrderType::Register, DomainOrderType::Transfer] as $type) {
+            $order = $service->create(
+                customer: ['name' => $owner->name, 'email' => $owner->email, 'user_id' => $owner->id],
+                domainName: $domain->name,
+                type: $type,
+            );
+            $this->assertSame('1600.00', $order->amount);
+        }
+
+        $order = $service->create(
+            customer: ['name' => $other->name, 'email' => $other->email, 'user_id' => $other->id],
+            domainName: $domain->name,
+            type: DomainOrderType::Renew,
+        );
+        $this->assertSame('1600.00', $order->amount);
+
+        $domain->update(['renewal_price' => null]);
+        $this->assertSame(1600.0, $domain->renewalPrice());
+        $domain->update(['renewal_price' => 0]);
+        $this->assertSame(0.0, $domain->renewalPrice());
     }
 
     public function test_unassigned_domains_are_ignored(): void

@@ -13,7 +13,7 @@ class Domain extends Model
 
     protected $fillable = [
         'name', 'registrar', 'user_id', 'lifecycle_status', 'verification_status',
-        'auto_renew', 'is_premium', 'privacy_level', 'nameserver_provider',
+        'renewal_price', 'auto_renew', 'is_premium', 'privacy_level', 'nameserver_provider',
         'nameservers', 'contact_ids', 'epp_statuses', 'registered_at',
         'expires_at', 'last_synced_at', 'last_reminder_days', 'meta', 'internal_notes',
     ];
@@ -21,6 +21,7 @@ class Domain extends Model
     protected function casts(): array
     {
         return [
+            'renewal_price' => 'decimal:2',
             'auto_renew' => 'boolean',
             'is_premium' => 'boolean',
             'nameservers' => 'array',
@@ -31,6 +32,13 @@ class Domain extends Model
             'last_synced_at' => 'datetime',
             'meta' => 'array',
         ];
+    }
+
+    public function renewalPrice(): ?float
+    {
+        $price = $this->renewal_price ?? Tld::matching($this->name)?->renew_price;
+
+        return $price === null ? null : (float) $price;
     }
 
     public function user(): BelongsTo

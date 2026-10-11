@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Enums\DomainOrderType;
 use App\Models\Domain;
 use App\Models\DomainOrder;
-use App\Models\Tld;
 use App\Services\DomainOrderService;
 use Illuminate\Console\Command;
 
@@ -34,8 +33,8 @@ class GenerateDomainRenewalInvoices extends Command
             ->whereBetween('expires_at', [now(), now()->addDays(self::INVOICE_AHEAD_DAYS)])
             ->with('user')
             ->each(function (Domain $domain) use ($orders, &$generated) {
-                if (Tld::matching($domain->name) === null) {
-                    $this->warn("{$domain->name}: skipped — no active TLD pricing.");
+                if ($domain->renewalPrice() === null) {
+                    $this->warn("{$domain->name}: skipped — no custom renewal price or active TLD pricing.");
 
                     return;
                 }
