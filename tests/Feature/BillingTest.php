@@ -154,7 +154,9 @@ class BillingTest extends TestCase
         $user = User::factory()->create();
 
         $order = app(DomainOrderService::class)->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'billingtest.com',
             type: DomainOrderType::Register,
         );
@@ -180,7 +182,9 @@ class BillingTest extends TestCase
         $user = User::factory()->create();
 
         $order = app(DomainOrderService::class)->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'billingtest2.com',
             type: DomainOrderType::Register,
         );

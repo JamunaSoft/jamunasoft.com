@@ -3,7 +3,6 @@
 namespace App\Services\Registrars;
 
 use App\Models\Domain;
-use App\Services\Spaceship\DefaultContactService;
 use App\Services\Spaceship\DomainSyncService;
 use App\Services\Spaceship\SpaceshipClient;
 
@@ -11,7 +10,6 @@ class SpaceshipRegistrar implements Registrar
 {
     public function __construct(
         protected SpaceshipClient $client,
-        protected DefaultContactService $contacts,
         protected DomainSyncService $sync,
     ) {}
 
@@ -30,9 +28,13 @@ class SpaceshipRegistrar implements Registrar
         ];
     }
 
-    public function register(string $domain, int $years): array
+    public function register(string $domain, int $years, array $contact): array
     {
-        $contactId = $this->contacts->contactId();
+        $contactId = $this->client->saveContact($contact);
+
+        if ($contactId === '') {
+            throw new RegistrarException("Spaceship did not return a contact ID for {$domain}.");
+        }
 
         $result = $this->client->registerDomain($domain, [
             'registrant' => $contactId,

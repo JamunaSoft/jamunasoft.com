@@ -3,8 +3,8 @@
 namespace App\Services\Registrars;
 
 use App\Models\Domain;
-use App\Support\Settings;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class ResellCubeRegistrar implements Registrar
 {
@@ -32,13 +32,16 @@ class ResellCubeRegistrar implements Registrar
         ];
     }
 
-    public function register(string $domain, int $years): array
+    public function register(string $domain, int $years, array $contact): array
     {
+        $customerId = $this->customerId($contact);
+        $contactId = $this->contactId($contact, $customerId);
+
         $this->client->registerDomain(
             $domain,
             $years,
-            $this->customerId(),
-            $this->contactId(),
+            $customerId,
+            $contactId,
             default_nameservers(),
         );
 
@@ -141,115 +144,82 @@ class ResellCubeRegistrar implements Registrar
         ];
     }
 
-    /**
-     * The house customer account that owns every registration (white-label:
-     * customers never get their own ResellCube account). Cached in settings.
-     */
-    protected function customerId(): int
+    protected function customerId(array $contact): int
     {
-        $cached = (int) settings('resellcube_customer_id', 0);
-
+        $key = 'resellcube_customer:'.config('services.resellcube.user_id').':'.hash('sha256', strtolower($contact['email']));
+        $cached = (int) Cache::get($key, 0);
         if ($cached > 0) {
             return $cached;
         }
 
-        $registrant = $this->registrant();
-        [$phoneCc, $phone] = $this->phoneParts($registrant['phone']);
-
+        [$phoneCc, $phone] = $this->phoneParts($contact['phone']);
+        $name = $contact['firstName'].' '.$contact['lastName'];
         try {
             $customerId = $this->client->signupCustomer([
-                'username' => $registrant['email'],
+                'username' => $contact['email'],
                 'passwd' => str()->password(12).'aA1!',
-                'name' => $registrant['name'],
-                'company' => $registrant['org'] ?: $registrant['name'],
-                'address-line-1' => $registrant['address'],
-                'city' => $registrant['city'],
-                'state' => $registrant['city'],
-                'country' => $registrant['country'],
-                'zipcode' => $registrant['postal'] ?: '1000',
+                'name' => $name,
+                'company' => $contact['organization'] ?? $name,
+                'address-line-1' => $contact['address1'],
+                'address-line-2' => $contact['address2'] ?? '',
+                'city' => $contact['city'],
+                'state' => $contact['stateProvince'] ?? $contact['city'],
+                'country' => $contact['country'],
+                'zipcode' => $contact['postalCode'],
                 'phone-cc' => $phoneCc,
                 'phone' => $phone,
                 'lang-pref' => 'en',
             ]);
         } catch (RegistrarException $e) {
-            // The email may already have an account — reuse it.
-            $existing = $this->client->customerByUsername($registrant['email']);
+            $existing = $this->client->customerByUsername($contact['email']);
             $customerId = (int) data_get($existing, 'customerid', 0);
-
             if ($customerId <= 0) {
                 throw $e;
             }
         }
 
-        Settings::set(['resellcube_customer_id' => $customerId], 'domains');
+        if ($customerId <= 0) {
+            throw new RegistrarException('ResellCube did not return a customer ID for the order customer.');
+        }
+
+        Cache::forever($key, $customerId);
 
         return $customerId;
     }
 
-    /**
-     * The house registrant contact under the house customer. Cached in
-     * settings with a hash of the source fields, like the Spaceship one.
-     */
-    protected function contactId(): int
+    protected function contactId(array $contact, int $customerId): int
     {
-        $registrant = $this->registrant();
-        $hash = md5(json_encode($registrant));
-
-        $cached = (int) settings('resellcube_contact_id', 0);
-
-        if ($cached > 0 && settings('resellcube_contact_hash') === $hash) {
+        $key = 'resellcube_contact:'.config('services.resellcube.user_id').':'.$customerId.':'.hash('sha256', json_encode($contact));
+        $cached = (int) Cache::get($key, 0);
+        if ($cached > 0) {
             return $cached;
         }
 
-        [$phoneCc, $phone] = $this->phoneParts($registrant['phone']);
-
+        [$phoneCc, $phone] = $this->phoneParts($contact['phone']);
+        $name = $contact['firstName'].' '.$contact['lastName'];
         $contactId = $this->client->addContact([
-            'name' => $registrant['name'],
-            'company' => $registrant['org'] ?: $registrant['name'],
-            'email' => $registrant['email'],
-            'address-line-1' => $registrant['address'],
-            'city' => $registrant['city'],
-            'country' => $registrant['country'],
-            'zipcode' => $registrant['postal'] ?: '1000',
+            'name' => $name,
+            'company' => $contact['organization'] ?? $name,
+            'email' => $contact['email'],
+            'address-line-1' => $contact['address1'],
+            'address-line-2' => $contact['address2'] ?? '',
+            'city' => $contact['city'],
+            'state' => $contact['stateProvince'] ?? '',
+            'country' => $contact['country'],
+            'zipcode' => $contact['postalCode'],
             'phone-cc' => $phoneCc,
             'phone' => $phone,
             'type' => 'Contact',
-            'customer-id' => $this->customerId(),
+            'customer-id' => $customerId,
         ]);
 
-        Settings::set([
-            'resellcube_contact_id' => $contactId,
-            'resellcube_contact_hash' => $hash,
-        ], 'domains');
-
-        return $contactId;
-    }
-
-    /**
-     * @return array{name: string, org: string, email: string, phone: string, address: string, city: string, postal: string, country: string}
-     */
-    protected function registrant(): array
-    {
-        $registrant = [
-            'name' => trim(settings('domain_registrant_first_name', '').' '.settings('domain_registrant_last_name', '')),
-            'org' => (string) settings('domain_registrant_org', ''),
-            'email' => (string) settings('domain_registrant_email', ''),
-            'phone' => (string) settings('domain_registrant_phone', ''),
-            'address' => (string) settings('domain_registrant_address', ''),
-            'city' => (string) settings('domain_registrant_city', ''),
-            'postal' => (string) settings('domain_registrant_postal', ''),
-            'country' => (string) settings('domain_registrant_country', 'BD'),
-        ];
-
-        foreach (['name', 'email', 'phone', 'address', 'city', 'country'] as $field) {
-            if (trim($registrant[$field]) === '') {
-                throw new RegistrarException(
-                    "Default registrant contact is incomplete: '{$field}' is missing. Fill in the Domains tab of Website Settings."
-                );
-            }
+        if ($contactId <= 0) {
+            throw new RegistrarException('ResellCube did not return a contact ID for the order customer.');
         }
 
-        return $registrant;
+        Cache::forever($key, $contactId);
+
+        return $contactId;
     }
 
     /**

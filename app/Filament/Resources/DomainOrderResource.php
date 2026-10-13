@@ -13,6 +13,7 @@ use App\Services\DomainOrderService;
 use App\Services\Spaceship\SpaceshipClient;
 use App\Services\Spaceship\SpaceshipException;
 use App\Support\DomainName;
+use App\Support\RegistrantContact;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
@@ -72,9 +73,14 @@ class DomainOrderResource extends Resource
                     ->required()
                     ->placeholder('example.com')
                     ->dehydrateStateUsing(fn (string $state) => DomainName::normalize($state)),
-                TextInput::make('customer_name')->required(),
-                TextInput::make('customer_email')->email()->required(),
-                TextInput::make('customer_phone'),
+                TextInput::make('customer_name')
+                    ->visible(fn (Get $get) => ! in_array($get('type'), [DomainOrderType::Register, DomainOrderType::Register->value], true))
+                    ->required(),
+                TextInput::make('customer_email')->email()
+                    ->visible(fn (Get $get) => ! in_array($get('type'), [DomainOrderType::Register, DomainOrderType::Register->value], true))
+                    ->required(),
+                TextInput::make('customer_phone')
+                    ->visible(fn (Get $get) => ! in_array($get('type'), [DomainOrderType::Register, DomainOrderType::Register->value], true)),
                 Select::make('user_id')
                     ->label('Panel customer')
                     ->relationship('user', 'name', fn (Builder $query) => $query->whereDoesntHave('roles'))
@@ -96,6 +102,9 @@ class DomainOrderResource extends Resource
                         $set('customer_name', $customer->name);
                         $set('customer_email', $customer->email);
                         $set('customer_phone', $customer->phone);
+                        foreach (RegistrantContact::fromCustomer($customer->toArray()) as $field => $value) {
+                            $set('meta.registrant.'.$field, $value);
+                        }
                     })
                     ->placeholder('None yet'),
                 Select::make('years')
@@ -106,6 +115,7 @@ class DomainOrderResource extends Resource
                     ->numeric()
                     ->prefix('৳')
                     ->helperText('Leave empty to price automatically from the TLD table.'),
+                ...static::registrantFields(),
                 TextInput::make('meta.epp_code')
                     ->label('EPP / Auth code')
                     ->password()
@@ -115,6 +125,52 @@ class DomainOrderResource extends Resource
                     ->columnSpanFull(),
             ]),
         ]);
+    }
+
+    public static function registrantFields(): array
+    {
+        $fields = [
+            'firstName' => 'Customer first name',
+            'lastName' => 'Customer last name',
+            'email' => 'Registrant email',
+            'phone' => 'Registrant phone',
+            'organization' => 'Organization (optional)',
+            'address1' => 'Street address',
+            'address2' => 'Address line 2 (optional)',
+            'city' => 'City',
+            'stateProvince' => 'State / province',
+            'postalCode' => 'Postal code',
+            'country' => 'Country code',
+        ];
+
+        return array_map(function (string $field, string $label) {
+            $input = TextInput::make('meta.registrant.'.$field)
+                ->label($label)
+                ->visible(fn (Get $get) => in_array($get('type'), [null, DomainOrderType::Register, DomainOrderType::Register->value], true))
+                ->required(fn (Get $get) => in_array($get('type'), [null, DomainOrderType::Register, DomainOrderType::Register->value], true)
+                    && ! in_array($field, ['organization', 'address2', 'stateProvince']))
+                ->maxLength(match ($field) {
+                    'country' => 2,
+                    'phone' => 17,
+                    'postalCode' => 16,
+                    'firstName', 'lastName' => 125,
+                    'address1', 'address2', 'city', 'stateProvince' => 64,
+                    default => 255,
+                });
+            if ($field === 'stateProvince') {
+                $input->helperText('Fill in when required for the customer’s country.');
+            }
+            if ($field === 'email') {
+                $input->email();
+            } elseif ($field === 'phone') {
+                $input->regex('/^\+\d{1,3}\.\d{4,12}$/')->helperText('Include country code, e.g. +880.1700000000');
+            } elseif ($field === 'country') {
+                $input->regex('/^[A-Za-z]{2}$/')->placeholder('BD')
+                    ->dehydrateStateUsing(fn ($state) => strtoupper(trim($state)));
+            }
+
+            return $input;
+        }, array_keys($fields), array_values($fields));
     }
 
     public static function infolist(Schema $schema): Schema
@@ -171,6 +227,25 @@ class DomainOrderResource extends Resource
             ])
             ->recordActions([
                 ViewAction::make(),
+                Action::make('editContact')
+                    ->label('Edit customer contact')
+                    ->authorize(fn (DomainOrder $record) => static::canEdit($record)
+                        && $record->type === DomainOrderType::Register
+                        && in_array($record->status, [DomainOrderStatus::PendingPayment, DomainOrderStatus::Paid, DomainOrderStatus::Failed], true))
+                    ->visible(fn (DomainOrder $record) => $record->type === DomainOrderType::Register
+                        && in_array($record->status, [DomainOrderStatus::PendingPayment, DomainOrderStatus::Paid, DomainOrderStatus::Failed], true))
+                    ->fillForm(fn (DomainOrder $record) => ['meta' => ['registrant' => RegistrantContact::forOrder($record)]])
+                    ->schema(static::registrantFields())
+                    ->action(function (DomainOrder $record, array $data) {
+                        $contact = RegistrantContact::validate(data_get($data, 'meta.registrant', []));
+                        $record->update([
+                            'customer_name' => $contact['firstName'].' '.$contact['lastName'],
+                            'customer_email' => $contact['email'],
+                            'customer_phone' => $contact['phone'],
+                            'meta' => array_merge($record->meta ?? [], ['registrant' => $contact]),
+                        ]);
+                        Notification::make()->title('Customer contact saved — you can retry the order')->success()->send();
+                    }),
                 Action::make('checkTransfer')
                     ->label('Check transfer')
                     ->icon(Heroicon::OutlinedArrowPath)

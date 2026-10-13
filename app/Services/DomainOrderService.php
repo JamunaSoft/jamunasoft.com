@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
 use App\Support\DomainName;
+use App\Support\RegistrantContact;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -41,6 +42,11 @@ class DomainOrderService
         ?\DateTimeInterface $invoiceDueAt = null,
     ): DomainOrder {
         $domainName = DomainName::normalize($domainName);
+        $account = isset($customer['user_id']) ? User::find($customer['user_id']) : null;
+        $contact = RegistrantContact::fromCustomer(array_merge(
+            $account?->only(['company_name', 'address', 'city', 'postal_code', 'country']) ?? [],
+            $customer,
+        ));
 
         if ($amount === null) {
             $domain = $type === DomainOrderType::Renew && isset($customer['user_id'])
@@ -76,6 +82,7 @@ class DomainOrderService
             'amount' => $amount,
             'currency' => 'BDT',
             'status' => DomainOrderStatus::PendingPayment,
+            'meta' => ['registrant' => $contact],
         ]);
 
         // Every order is billed through an invoice; the order confirmation
@@ -252,6 +259,7 @@ class DomainOrderService
     {
         $registrar = $this->registrars->for($order->registrar);
 
+        $contact = RegistrantContact::validate(RegistrantContact::forOrder($order));
         $availability = $registrar->checkAvailability($order->domain_name);
 
         if (! $availability['available']) {
@@ -262,7 +270,7 @@ class DomainOrderService
             throw new RegistrarException("{$order->domain_name} is a premium domain — register manually after checking the premium price.");
         }
 
-        return $registrar->register($order->domain_name, $order->years);
+        return $registrar->register($order->domain_name, $order->years, $contact);
     }
 
     /**

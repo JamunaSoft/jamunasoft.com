@@ -18,6 +18,7 @@ use App\Services\DomainOrderService;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\SpaceshipRegistrar;
 use App\Services\Spaceship\SpaceshipClient;
+use App\Support\RegistrantContact;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -120,8 +121,10 @@ class DomainOrderTest extends TestCase
 
         $response = $this->post('/domains/order', [
             'name' => 'Rahim Uddin',
+            'first_name' => 'Rahim', 'last_name' => 'Uddin',
+            'phone' => '+880.1700000000', 'address' => '10 Customer Road',
+            'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD',
             'email' => 'rahim@example.com',
-            'phone' => '01700000000',
             'domain' => 'mytestshop.com',
             'years' => 2,
         ]);
@@ -156,7 +159,8 @@ class DomainOrderTest extends TestCase
             'company_name' => 'Example Ltd',
             'contact_name' => 'Billing Contact',
             'email' => 'billing@example.com',
-            'phone' => '01800000000',
+            'phone' => '+880.1800000000',
+            'address' => '20 Billing Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD',
         ]);
 
         $response = $this->actingAs($user)->post('/domains/order', [
@@ -173,7 +177,9 @@ class DomainOrderTest extends TestCase
         $this->assertSame($user->id, $order->user_id);
         $this->assertSame('Billing Contact', $order->customer_name);
         $this->assertSame('billing@example.com', $order->customer_email);
-        $this->assertSame('01800000000', $order->customer_phone);
+        $this->assertSame('+880.1800000000', $order->customer_phone);
+        $this->assertSame('20 Billing Road', data_get($order->meta, 'registrant.address1'));
+        $this->assertSame('Billing', data_get($order->meta, 'registrant.firstName'));
     }
 
     public function test_order_creation_normalizes_a_domain_url_before_pricing(): void
@@ -207,6 +213,11 @@ class DomainOrderTest extends TestCase
             'amount' => 2000,
             'status' => DomainOrderStatus::Failed,
             'error_message' => 'Unable to find a requested resource.',
+            'meta' => ['registrant' => [
+                'firstName' => 'Customer', 'lastName' => 'Owner', 'email' => 'customer@example.com',
+                'phone' => '+880.1700000000', 'address1' => '10 Customer Road',
+                'city' => 'Dhaka', 'postalCode' => '1207', 'country' => 'BD',
+            ]],
         ]);
 
         (new ProcessDomainOrder($order))->handle(app(DomainOrderService::class));
@@ -231,7 +242,9 @@ class DomainOrderTest extends TestCase
         $service = app(DomainOrderService::class);
 
         $order = $service->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'mytestshop.com',
             type: DomainOrderType::Register,
         );
@@ -242,6 +255,10 @@ class DomainOrderTest extends TestCase
 
         $this->assertSame(DomainOrderStatus::Completed, $order->status);
         $this->assertSame('OP123', $order->spaceship_operation_id);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/contacts')
+            && $request['firstName'] === 'Customer' && $request['lastName'] === 'Owner'
+            && $request['email'] === $user->email && $request['address1'] === '10 Customer Road'
+            && $request['postalCode'] === '1207');
 
         $domain = Domain::where('name', 'mytestshop.com')->firstOrFail();
         $this->assertSame('registered', $domain->lifecycle_status);
@@ -322,7 +339,9 @@ class DomainOrderTest extends TestCase
         });
 
         $order = app(DomainOrderService::class)->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'mytestshop.com',
             type: DomainOrderType::Transfer,
         );
@@ -427,12 +446,63 @@ class DomainOrderTest extends TestCase
         ]);
     }
 
+    public function test_customer_contact_snapshot_does_not_change_with_the_account(): void
+    {
+        Mail::fake();
+        $user = User::factory()->create([
+            'name' => 'Customer Owner', 'address' => 'Original Customer Road',
+            'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD',
+        ]);
+        $order = app(DomainOrderService::class)->create(
+            customer: ['name' => $user->name, 'email' => $user->email, 'phone' => '+880.1700000000', 'user_id' => $user->id],
+            domainName: 'snapshot.com', type: DomainOrderType::Register,
+        );
+        $user->update(['address' => 'Changed Road']);
+        $contact = RegistrantContact::forOrder($order->fresh());
+        $this->assertSame('Original Customer Road', $contact['address1']);
+        $this->assertSame($user->email, $contact['email']);
+    }
+
+    public function test_missing_customer_contact_fails_without_using_default_contact(): void
+    {
+        $this->fillRegistrantSettings();
+        Mail::fake();
+        Http::fake();
+        $order = app(DomainOrderService::class)->create(
+            customer: ['name' => 'Domain Owner', 'email' => 'owner@example.com'],
+            domainName: 'owner.com', type: DomainOrderType::Register,
+        );
+        app(DomainOrderService::class)->process($order);
+        $this->assertSame(DomainOrderStatus::Failed, $order->fresh()->status);
+        $this->assertStringContainsString('Customer registrant contact', $order->fresh()->error_message);
+        Http::assertNothingSent();
+    }
+
+    public function test_incomplete_saved_contact_cannot_create_a_registration_order(): void
+    {
+        $this->fakeSpaceship();
+        Mail::fake();
+        $user = User::factory()->create();
+        $profile = BillingProfile::create([
+            'user_id' => $user->id, 'contact_name' => 'Domain Owner',
+            'company_name' => 'Customer Ltd', 'email' => 'owner@example.com',
+        ]);
+        $this->actingAs($user)->from('/domains')->post('/domains/order', [
+            'contact_option' => 'existing', 'billing_profile_id' => $profile->id,
+            'domain' => 'owner.com', 'years' => 1,
+        ])->assertRedirect('/domains')->assertSessionHasErrors('billing_profile_id');
+        $this->assertSame(0, DomainOrder::count());
+    }
+
     public function test_taken_domain_cannot_be_ordered(): void
     {
         Http::fake(['*/available*' => Http::response(['domain' => 'google.com', 'result' => 'taken', 'premiumPricing' => []])]);
 
         $this->from('/domains')->post('/domains/order', [
             'name' => 'Rahim Uddin',
+            'first_name' => 'Rahim', 'last_name' => 'Uddin',
+            'phone' => '+880.1700000000', 'address' => '10 Customer Road',
+            'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD',
             'email' => 'rahim@example.com',
             'domain' => 'google.com',
             'years' => 1,
@@ -445,6 +515,9 @@ class DomainOrderTest extends TestCase
     {
         $this->from('/domains')->post('/domains/order', [
             'name' => 'Rahim Uddin',
+            'first_name' => 'Rahim', 'last_name' => 'Uddin',
+            'phone' => '+880.1700000000', 'address' => '10 Customer Road',
+            'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD',
             'email' => 'rahim@example.com',
             'domain' => 'example.xyz',
             'years' => 1,

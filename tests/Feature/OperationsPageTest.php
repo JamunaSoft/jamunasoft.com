@@ -92,4 +92,57 @@ class OperationsPageTest extends TestCase
         $order = DomainOrder::where('domain_name', 'migration-example.com')->firstOrFail();
         $this->assertSame('TEST-EPP-CODE', data_get($order->meta, 'epp_code'));
     }
+
+    public function test_admin_can_fill_a_failed_orders_customer_contact_without_losing_metadata(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        $admin = User::factory()->create();
+        $admin->assignRole('Super Admin');
+        $order = DomainOrder::create([
+            'reference' => DomainOrder::generateReference(), 'domain_name' => 'example.com',
+            'customer_name' => 'Old Owner', 'customer_email' => 'old@example.test',
+            'type' => DomainOrderType::Register, 'registrar' => 'spaceship',
+            'amount' => 1600, 'years' => 1, 'status' => DomainOrderStatus::Failed,
+            'meta' => ['existing_key' => 'preserved'],
+        ]);
+        Livewire::actingAs($admin)->test(ListDomainOrders::class)->callTableAction('editContact', $order, data: [
+            'meta' => ['registrant' => [
+                'firstName' => 'Domain', 'lastName' => 'Owner', 'email' => 'owner@example.com',
+                'phone' => '+880.1700000000', 'address1' => '10 Customer Road', 'city' => 'Dhaka',
+                'postalCode' => '1207', 'country' => 'BD',
+            ]],
+        ])->assertHasNoTableActionErrors();
+        $order->refresh();
+        $this->assertSame('Domain Owner', $order->customer_name);
+        $this->assertSame('owner@example.com', $order->customer_email);
+        $this->assertSame('preserved', $order->meta['existing_key']);
+        $this->assertSame('10 Customer Road', data_get($order->meta, 'registrant.address1'));
+
+        $viewer = User::factory()->create();
+        $viewer->assignRole('Content Manager');
+        $viewer->givePermissionTo('domains.view');
+        Livewire::actingAs($viewer)->test(ListDomainOrders::class)->assertTableActionHidden('editContact', $order);
+        $order->update(['status' => DomainOrderStatus::Completed]);
+        Livewire::actingAs($admin)->test(ListDomainOrders::class)->assertTableActionHidden('editContact', $order->fresh());
+    }
+
+    public function test_admin_registration_uses_the_explicit_customer_contact(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        Mail::fake();
+        $admin = User::factory()->create();
+        $admin->assignRole('Super Admin');
+        Livewire::actingAs($admin)->test(ListDomainOrders::class)->callAction('create', data: [
+            'type' => 'register', 'domain_name' => 'customer.com', 'years' => 1, 'amount' => 2000,
+            'meta' => ['registrant' => [
+                'firstName' => 'Customer', 'lastName' => 'Owner', 'email' => 'customer@example.com',
+                'phone' => '+880.1700000000', 'address1' => '10 Customer Road', 'city' => 'Dhaka',
+                'postalCode' => '1207', 'country' => 'bd',
+            ]],
+        ])->assertHasNoActionErrors();
+        $order = DomainOrder::where('domain_name', 'customer.com')->firstOrFail();
+        $this->assertSame('Customer Owner', $order->customer_name);
+        $this->assertSame('customer@example.com', $order->customer_email);
+        $this->assertSame('BD', data_get($order->meta, 'registrant.country'));
+    }
 }

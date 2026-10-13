@@ -83,6 +83,30 @@ class RegistrarSwitchTest extends TestCase
         });
     }
 
+    public function test_resellcube_customer_contacts_are_cached_separately(): void
+    {
+        $this->fakeResellCube();
+        $registrar = app(RegistrarManager::class)->for('resellcube');
+        $contact = [
+            'firstName' => 'First', 'lastName' => 'Owner', 'email' => 'first@example.com',
+            'phone' => '+880.1700000000', 'address1' => 'First Customer Road', 'city' => 'Dhaka',
+            'postalCode' => '1207', 'country' => 'BD',
+        ];
+        $registrar->register('rctest.com', 1, $contact);
+        $registrar->register('rctest.com', 1, array_merge($contact, [
+            'firstName' => 'Second', 'email' => 'second@example.com', 'address1' => 'Second Customer Road',
+        ]));
+        $registrar->register('rctest.com', 1, $contact);
+
+        $signups = Http::recorded(fn (Request $request) => str_contains($request->url(), '/customers/v2/signup.json'));
+        $contacts = Http::recorded(fn (Request $request) => str_contains($request->url(), '/contacts/add.json'))->values();
+        $this->assertCount(2, $signups);
+        $this->assertCount(2, $contacts);
+        parse_str((string) parse_url($contacts[1][0]->url(), PHP_URL_QUERY), $query);
+        $this->assertSame('second@example.com', $query['email']);
+        $this->assertSame('Second Customer Road', $query['address-line-1']);
+    }
+
     public function test_search_uses_the_selected_registrar(): void
     {
         Settings::set(['active_domain_registrar' => 'resellcube'], 'domains');
@@ -106,7 +130,9 @@ class RegistrarSwitchTest extends TestCase
         $service = app(DomainOrderService::class);
 
         $order = $service->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'rctest.com',
             type: DomainOrderType::Register,
         );
@@ -117,6 +143,13 @@ class RegistrarSwitchTest extends TestCase
 
         $order->refresh();
         $this->assertSame(DomainOrderStatus::Completed, $order->status);
+        Http::assertSent(function (Request $request) use ($user) {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return str_contains($request->url(), '/contacts/add.json')
+                && ($query['email'] ?? null) === $user->email && ($query['name'] ?? null) === 'Customer Owner'
+                && ($query['address-line-1'] ?? null) === '10 Customer Road' && ($query['zipcode'] ?? null) === '1207';
+        });
 
         $domain = Domain::where('name', 'rctest.com')->firstOrFail();
         $this->assertSame('resellcube', $domain->registrar);
@@ -144,7 +177,9 @@ class RegistrarSwitchTest extends TestCase
         ]);
 
         $order = app(DomainOrderService::class)->create(
-            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id],
+            customer: ['name' => $user->name, 'email' => $user->email, 'user_id' => $user->id,
+                'first_name' => 'Customer', 'last_name' => 'Owner', 'phone' => '+880.1700000000',
+                'address' => '10 Customer Road', 'city' => 'Dhaka', 'postal_code' => '1207', 'country' => 'BD'],
             domainName: 'spaceshipdomain.com',
             type: DomainOrderType::Renew,
         );

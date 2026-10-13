@@ -19,13 +19,13 @@ interface Registrar
     public function checkAvailability(string $domain): array;
 
     /**
-     * Register a domain for N years using the house registrant contact.
+     * Register a domain for N years using the customer registrant contact.
      * Returns an async operation id when the provider is asynchronous,
      * null when the registration settled synchronously.
      *
      * @return array{operationId: ?string}
      */
-    public function register(string $domain, int $years): array;
+    public function register(string $domain, int $years, array $contact): array;
 
     /**
      * Renew a domain for N years.

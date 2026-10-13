@@ -8,6 +8,8 @@ use App\Models\DomainOrder;
 use App\Models\Tld;
 use App\Services\DomainOrderService;
 use App\Services\DomainSearchService;
+use App\Services\Registrars\RegistrarException;
+use App\Support\RegistrantContact;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,7 +74,8 @@ class DomainController extends Controller
         }
 
         $customer = [
-            'name' => (string) $request->validated('name'),
+            ...$request->safe()->only(['first_name', 'last_name', 'company_name', 'address', 'address2', 'city', 'state', 'postal_code', 'country']),
+            'name' => trim($request->validated('first_name').' '.$request->validated('last_name')),
             'email' => (string) $request->validated('email'),
             'phone' => $request->validated('phone'),
             'user_id' => $request->user()?->id,
@@ -85,11 +88,18 @@ class DomainController extends Controller
                 ->firstOrFail();
 
             $customer = [
+                ...$profile->only(['company_name', 'address', 'city', 'postal_code', 'country']),
                 'name' => $profile->contact_name ?: $profile->company_name,
                 'email' => $profile->email ?: $request->user()->email,
                 'phone' => $profile->phone ?: $request->user()->phone,
                 'user_id' => $request->user()->id,
             ];
+        }
+
+        try {
+            RegistrantContact::validate(RegistrantContact::fromCustomer($customer));
+        } catch (RegistrarException $e) {
+            return back()->withInput()->withErrors(['billing_profile_id' => $e->getMessage()]);
         }
 
         $order = $orders->create(

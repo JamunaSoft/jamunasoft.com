@@ -15,6 +15,25 @@ class ListDomainOrders extends ListRecords
 {
     protected static string $resource = DomainOrderResource::class;
 
+    protected static function customerContact(array $data): array
+    {
+        $contact = data_get($data, 'meta.registrant', []);
+        $mapping = ['first_name' => 'firstName', 'last_name' => 'lastName', 'company_name' => 'organization',
+            'email' => 'email', 'phone' => 'phone', 'address' => 'address1', 'address2' => 'address2',
+            'city' => 'city', 'state' => 'stateProvince', 'postal_code' => 'postalCode', 'country' => 'country'];
+        $customer = [];
+        foreach ($mapping as $field => $key) {
+            if (filled($contact[$key] ?? null)) {
+                $customer[$field] = $contact[$key];
+            }
+        }
+        if (isset($customer['first_name'], $customer['last_name'])) {
+            $customer['name'] = $customer['first_name'].' '.$customer['last_name'];
+        }
+
+        return $customer;
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -23,10 +42,11 @@ class ListDomainOrders extends ListRecords
                     try {
                         $order = app(DomainOrderService::class)->create(
                             customer: [
-                                'name' => $data['customer_name'],
-                                'email' => $data['customer_email'],
+                                'name' => $data['customer_name'] ?? '',
+                                'email' => $data['customer_email'] ?? '',
                                 'phone' => $data['customer_phone'] ?? null,
                                 'user_id' => $data['user_id'] ?? null,
+                                ...static::customerContact($data),
                             ],
                             domainName: $data['domain_name'],
                             type: DomainOrderType::from(is_string($data['type']) ? $data['type'] : $data['type']->value),

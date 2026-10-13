@@ -165,10 +165,17 @@
                         </div>
                     @endauth
 
-                    <x-form.input name="name" :label="__('Full Name')" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" :value="auth()->user()?->name" autocomplete="name" />
-                    <x-form.input name="email" :label="__('Email')" type="email" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" :value="auth()->user()?->email" autocomplete="email" />
-                    <x-form.input name="phone" :label="__('Phone')" type="tel" x-show="contactOption === 'new'" x-cloak :value="auth()->user()?->phone" autocomplete="tel" />
-
+                    <x-form.input name="first_name" :label="__('First Name')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="given-name" />
+                    <x-form.input name="last_name" :label="__('Last Name')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="family-name" />
+                    <x-form.input name="email" :label="__('Email')" type="email" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="email" />
+                    <x-form.input name="phone" :label="__('Phone (+880.1700000000)')" type="tel" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="tel" />
+                    <x-form.input name="company_name" :label="__('Organization (optional)')" type="text" x-show="contactOption === 'new'" x-cloak autocomplete="organization" />
+                    <x-form.input name="address" :label="__('Street Address')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="address-line1" />
+                    <x-form.input name="address2" :label="__('Address Line 2 (optional)')" type="text" x-show="contactOption === 'new'" x-cloak autocomplete="address-line2" />
+                    <x-form.input name="city" :label="__('City')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="address-level2" />
+                    <x-form.input name="state" :label="__('State / Province')" type="text" x-show="contactOption === 'new'" x-cloak autocomplete="address-level1" />
+                    <x-form.input name="postal_code" :label="__('Postal Code')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="postal-code" />
+                    <x-form.input name="country" :label="__('Country Code (e.g. BD)')" type="text" x-show="contactOption === 'new'" x-cloak x-bind:required="contactOption === 'new'" autocomplete="country" />
                     <div>
                         <label for="years" class="mb-1.5 block text-sm font-semibold text-navy-900">{{ __('Registration Period') }}</label>
                         <select
