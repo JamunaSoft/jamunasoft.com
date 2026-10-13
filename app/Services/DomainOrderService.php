@@ -16,6 +16,7 @@ use App\Models\Tld;
 use App\Models\User;
 use App\Services\Registrars\RegistrarException;
 use App\Services\Registrars\RegistrarManager;
+use App\Support\DomainName;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -39,7 +40,7 @@ class DomainOrderService
         ?float $amount = null,
         ?\DateTimeInterface $invoiceDueAt = null,
     ): DomainOrder {
-        $domainName = strtolower(trim($domainName));
+        $domainName = DomainName::normalize($domainName);
 
         if ($amount === null) {
             $domain = $type === DomainOrderType::Renew && isset($customer['user_id'])
@@ -138,7 +139,11 @@ class DomainOrderService
      */
     public function process(DomainOrder $order): void
     {
-        $order->update(['status' => DomainOrderStatus::Processing, 'error_message' => null]);
+        $order->update([
+            'domain_name' => DomainName::normalize($order->domain_name),
+            'status' => DomainOrderStatus::Processing,
+            'error_message' => null,
+        ]);
 
         try {
             $result = match ($order->type) {

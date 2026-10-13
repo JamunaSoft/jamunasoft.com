@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\DomainOrderStatus;
 use App\Enums\DomainOrderType;
 use App\Jobs\PollDomainTransfer;
+use App\Jobs\ProcessDomainOrder;
 use App\Mail\DomainOrderCompleted;
 use App\Mail\DomainOrderConfirmation;
 use App\Mail\DomainTransferStarted;
@@ -173,6 +174,50 @@ class DomainOrderTest extends TestCase
         $this->assertSame('Billing Contact', $order->customer_name);
         $this->assertSame('billing@example.com', $order->customer_email);
         $this->assertSame('01800000000', $order->customer_phone);
+    }
+
+    public function test_order_creation_normalizes_a_domain_url_before_pricing(): void
+    {
+        Mail::fake();
+
+        $order = app(DomainOrderService::class)->create(
+            customer: ['name' => 'Customer', 'email' => 'customer@example.com'],
+            domainName: ' HTTPS://SkySquareConventionHall.COM/ ',
+            type: DomainOrderType::Register,
+        );
+
+        $this->assertSame('skysquareconventionhall.com', $order->domain_name);
+        $this->assertSame('2000.00', $order->amount);
+    }
+
+    public function test_retry_normalizes_a_legacy_domain_url_before_calling_the_registrar(): void
+    {
+        $this->fakeSpaceship();
+        $this->fillRegistrantSettings();
+        Mail::fake();
+
+        $order = DomainOrder::create([
+            'reference' => DomainOrder::generateReference(),
+            'customer_name' => 'Customer',
+            'customer_email' => 'customer@example.com',
+            'domain_name' => 'http://skysquareconventionhall.com/',
+            'registrar' => 'spaceship',
+            'type' => DomainOrderType::Register,
+            'years' => 1,
+            'amount' => 2000,
+            'status' => DomainOrderStatus::Failed,
+            'error_message' => 'Unable to find a requested resource.',
+        ]);
+
+        (new ProcessDomainOrder($order))->handle(app(DomainOrderService::class));
+
+        $order->refresh();
+        $this->assertSame('skysquareconventionhall.com', $order->domain_name);
+        $this->assertNull($order->error_message);
+        $this->assertNotSame(DomainOrderStatus::Failed, $order->status);
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/domains/skysquareconventionhall.com/available'));
+        Http::assertSent(fn (Request $request) => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/domains/skysquareconventionhall.com'));
     }
 
     public function test_payment_confirmation_registers_the_domain(): void

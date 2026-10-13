@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DomainOrderService;
 use App\Services\Spaceship\SpaceshipClient;
 use App\Services\Spaceship\SpaceshipException;
+use App\Support\DomainName;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\ViewAction;
@@ -70,7 +71,7 @@ class DomainOrderResource extends Resource
                 TextInput::make('domain_name')
                     ->required()
                     ->placeholder('example.com')
-                    ->dehydrateStateUsing(fn (string $state) => strtolower(trim($state))),
+                    ->dehydrateStateUsing(fn (string $state) => DomainName::normalize($state)),
                 TextInput::make('customer_name')->required(),
                 TextInput::make('customer_email')->email()->required(),
                 TextInput::make('customer_phone'),
